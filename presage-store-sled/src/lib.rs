@@ -460,9 +460,9 @@ impl Store for SledStore {
     fn save_group(
         &self,
         master_key: GroupMasterKeyBytes,
-        group: proto::Group,
+        group: &Group,
     ) -> Result<(), SledStoreError> {
-        self.insert(SLED_TREE_GROUPS, master_key, group.encode_to_vec())?;
+        self.insert(SLED_TREE_GROUPS, master_key, group)?;
         Ok(())
     }
 
