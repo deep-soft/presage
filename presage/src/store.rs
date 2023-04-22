@@ -18,14 +18,16 @@ use serde::{Deserialize, Serialize};
 
 pub trait StoreError: std::error::Error + Sync + Send + 'static {}
 
-pub trait Store:
-    PreKeyStore + SignedPreKeyStore + SessionStoreExt + IdentityKeyStore + SenderKeyStore + Sync + Clone
+pub trait Store: Sync + Clone
 {
     type Error: StoreError;
 
     type ContactsIter: Iterator<Item = Result<Contact, Self::Error>>;
     type GroupsIter: Iterator<Item = Result<(GroupMasterKeyBytes, Group), Self::Error>>;
     type MessagesIter: Iterator<Item = Result<Content, Self::Error>>;
+
+    /// Signal store
+    fn protocol_store(&mut self, service_id_type: ServiceIdType) -> impl ProtocolStore;
 
     /// State
 

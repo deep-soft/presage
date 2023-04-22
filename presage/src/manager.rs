@@ -519,8 +519,6 @@ impl<C: Store> Manager<C, Registered> {
 
         let (pre_keys_offset_id, next_signed_pre_key_id) = account_manager
             .update_pre_key_bundle(
-                &self.config_store.clone(),
-                &mut self.config_store.clone(),
                 &mut self.config_store.clone(),
                 &mut self.rng,
                 self.config_store.pre_keys_offset_id()?,
