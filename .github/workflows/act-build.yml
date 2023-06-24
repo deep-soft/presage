@@ -7,17 +7,103 @@ on:
 #      - v0.*
 #  pull_request:
   workflow_dispatch:
+    inputs:
+      # if: ${{ inputs.build_release }}
+      build_release:
+        description: Build release
+        type: boolean
+        required: true
+        default: true
+      # if: ${{ inputs.build_and_test }}
+      build_and_test:
+        description: Build and test
+        type: boolean
+        required: true
+        default: false
+      # if: ${{ inputs.rustfmt }}
+      rustfmt:
+        description: rustfmt
+        type: boolean
+        required: true
+        default: false
+      # if: ${{ inputs.clippy }}
+      clippy:
+        description: clippy
+        type: boolean
+        required: true
+        default: false
 
 env:
   CARGO_INCREMENTAL: 0
+  TAG_NAME: "presage"
+  VERSION: "v.0.5.3"
+  DEBUG_LS: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  build_release:
+    name: cargo build release
+    if: ${{ inputs.build_release }}
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      
+      - name: Configure CI cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-targets
+      
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-targets
+###
+# zip release begin
+      - name: Create Archive Release
+        uses: deep-soft/zip-release@v2
+        with:
+          type: 'zip'
+          filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}.zip'
+          directory: '.'
+          path: '.'
+          exclusions: '*.git* /*node_modules/* .editorconfig'
+          # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
+
+      - name: print env value
+        shell: bash
+        run: |
+          echo "env.ZIP_RELEASE_ARCHIVE=${{ env.ZIP_RELEASE_ARCHIVE }}"
+
+      - name: Publish Release
+        continue-on-error: true
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
+            ${{ env.ZIP_RELEASE_ARCHIVE }}
+# zip release end
+
   build_and_test:
     name: cargo build
+    if: ${{ inputs.build_and_test }}
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: -D warnings
@@ -47,6 +133,7 @@ jobs:
 
   rustfmt:
     name: rustfmt
+    if: ${{ inputs.rustfmt }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -67,6 +154,7 @@ jobs:
 
   clippy:
     name: clippy
+    if: ${{ inputs.clippy }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
