@@ -1,4 +1,4 @@
-# 2023-06-24 09:40
+# 2023-06-24 10:00
 name: act - Build
 
 on:
@@ -83,8 +83,10 @@ jobs:
         with:
           type: 'zip'
           filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}-${{ github.job }}.zip'
-          directory: '.'
-          path: '.'
+          #directory: '.'
+          #path: '.'
+          directory: "target/x86_64-pc-windows-msvc/release"
+          path: 'presage-cli.exe'
           exclusions: '*.git* /*node_modules/* .editorconfig'
           # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
 
@@ -135,8 +137,10 @@ jobs:
         with:
           type: 'zip'
           filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}-${{ github.job }}.zip'
-          directory: '.'
-          path: '.'
+          #directory: '.'
+          #path: '.'
+          directory: "target/x86_64-unknown-linux-gnu/release"
+          path: 'presage-cli'
           exclusions: '*.git* /*node_modules/* .editorconfig'
           # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
 
