@@ -1,4 +1,6 @@
+# 2023-06-24 09:00
 name: act - Build
+
 on:
 #  push:
 #    branches:
@@ -8,9 +10,15 @@ on:
 #  pull_request:
   workflow_dispatch:
     inputs:
-      # if: ${{ inputs.build_release }}
-      build_release:
-        description: Build release
+      # if: ${{ inputs.build_release_windows }}
+      build_release_windows:
+        description: Build release Windows
+        type: boolean
+        required: true
+        default: true
+      # if: ${{ inputs.build_release_ubuntu }}
+      build_release_ubuntu:
+        description: Build release Ubuntu
         type: boolean
         required: true
         default: true
@@ -44,10 +52,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_release:
-    name: cargo build release
-    if: ${{ inputs.build_release }}
-    runs-on: ubuntu-latest
+  build_release_windows:
+    name: cargo build release windows
+    if: ${{ inputs.build_release_windows }}
+    runs-on: windows-2019
     env:
       RUSTFLAGS: -D warnings
     steps:
@@ -66,13 +74,14 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all-targets
-      
+          args: --target x86_64-pc-windows-msvc --release
+
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all-targets
+          args: --target x86_64-pc-windows-msvc --release
+
 ###
 # zip release begin
       - name: Create Archive Release
@@ -95,7 +104,65 @@ jobs:
         uses: deep-soft/action-gh-release@v1
         with:
           draft: true
-          tag_name: ${{ env.TAG_NAME }}
+          tag_name: ${{ env.TAG_NAME }}-${{ github.job }}-windows
+          files: |
+            ${{ env.ASSET_REL }}
+            ${{ env.ZIP_RELEASE_ARCHIVE }}
+# zip release end
+
+  build_release_ubuntu:
+    name: cargo build release ubuntu
+    if: ${{ inputs.build_release_ubuntu }}
+    runs-on: ubuntu-20.04
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      
+      - name: Configure CI cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target x86_64-unknown-linux-gnu --release
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --target x86_64-unknown-linux-gnu --release
+
+###
+# zip release begin
+      - name: Create Archive Release
+        uses: deep-soft/zip-release@v2
+        with:
+          type: 'zip'
+          filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}.zip'
+          directory: '.'
+          path: '.'
+          exclusions: '*.git* /*node_modules/* .editorconfig'
+          # archive name is ${{ env.ZIP_RELEASE_ARCHIVE }}
+
+      - name: print env value
+        shell: bash
+        run: |
+          echo "env.ZIP_RELEASE_ARCHIVE=${{ env.ZIP_RELEASE_ARCHIVE }}"
+
+      - name: Publish Release
+        continue-on-error: true
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}-${{ github.job }}-ubuntu
           files: |
             ${{ env.ASSET_REL }}
             ${{ env.ZIP_RELEASE_ARCHIVE }}
