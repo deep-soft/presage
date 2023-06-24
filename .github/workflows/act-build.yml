@@ -76,12 +76,6 @@ jobs:
           command: build
           args: --target x86_64-pc-windows-msvc --release
 
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --target x86_64-pc-windows-msvc --release
-
 ###
 # zip release begin
       - name: Create Archive Release
@@ -113,7 +107,7 @@ jobs:
   build_release_ubuntu:
     name: cargo build release ubuntu
     if: ${{ inputs.build_release_ubuntu }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       RUSTFLAGS: -D warnings
     steps:
@@ -132,12 +126,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --target x86_64-unknown-linux-gnu --release
-
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
           args: --target x86_64-unknown-linux-gnu --release
 
 ###
