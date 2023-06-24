@@ -82,7 +82,7 @@ jobs:
         uses: deep-soft/zip-release@v2
         with:
           type: 'zip'
-          filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}.zip'
+          filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}-${{ github.job }}.zip'
           directory: '.'
           path: '.'
           exclusions: '*.git* /*node_modules/* .editorconfig'
@@ -134,7 +134,7 @@ jobs:
         uses: deep-soft/zip-release@v2
         with:
           type: 'zip'
-          filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}.zip'
+          filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}-${{ github.job }}.zip'
           directory: '.'
           path: '.'
           exclusions: '*.git* /*node_modules/* .editorconfig'
