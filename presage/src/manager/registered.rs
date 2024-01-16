@@ -41,6 +41,7 @@ use log::{debug, error, info, trace, warn};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 use tokio::sync::Mutex;
 
 use crate::cache::CacheCell;
@@ -208,16 +209,29 @@ impl<S: Store> Manager<S, Registered> {
     }
 
     /// Returns the current identified websocket, or creates a new one
-    async fn identified_websocket(&self) -> Result<SignalWebSocket, Error<S::Error>> {
+    ///
+    /// A new one is created if the current websocket is closed, or if there is none yet.
+    async fn identified_websocket(
+        &self,
+        require_unused: bool,
+    ) -> Result<SignalWebSocket, Error<S::Error>> {
         let mut identified_ws = self.state.identified_websocket.lock().await;
-        match identified_ws.clone() {
-            Some(ws) => Ok(ws),
+        match identified_ws
+            .as_ref()
+            .filter(|ws| !ws.is_closed())
+            .filter(|ws| !(require_unused && ws.is_used()))
+        {
+            Some(ws) => Ok(ws.clone()),
             None => {
-                let keep_alive = true;
                 let headers = &[("X-Signal-Receive-Stories", "false")];
                 let ws = self
                     .identified_push_service()
-                    .ws("/v1/websocket/", headers, self.credentials(), keep_alive)
+                    .ws(
+                        "/v1/websocket/",
+                        "/v1/keepalive",
+                        headers,
+                        self.credentials(),
+                    )
                     .await?;
                 identified_ws.replace(ws.clone());
                 debug!("initialized identified websocket");
@@ -227,15 +241,17 @@ impl<S: Store> Manager<S, Registered> {
         }
     }
 
+    /// Returns the current unidentified websocket, or creates a new one
+    ///
+    /// A new one is created if the current websocket is closed, or if there is none yet.
     async fn unidentified_websocket(&self) -> Result<SignalWebSocket, Error<S::Error>> {
         let mut unidentified_ws = self.state.unidentified_websocket.lock().await;
-        match unidentified_ws.clone() {
-            Some(ws) => Ok(ws),
+        match unidentified_ws.as_ref().filter(|ws| !ws.is_closed()) {
+            Some(ws) => Ok(ws.clone()),
             None => {
-                let keep_alive = true;
                 let ws = self
                     .unidentified_push_service()
-                    .ws("/v1/websocket/", &[], None, keep_alive)
+                    .ws("/v1/websocket/", "/v1/keepalive", &[], None)
                     .await?;
                 unidentified_ws.replace(ws.clone());
                 debug!("initialized unidentified websocket");
@@ -463,7 +479,7 @@ impl<S: Store> Manager<S, Registered> {
         &mut self,
     ) -> Result<impl Stream<Item = Result<Incoming, ServiceError>>, Error<S::Error>> {
         let credentials = self.credentials().ok_or(Error::NotYetRegisteredError)?;
-        let ws = self.identified_websocket().await?;
+        let ws = self.identified_websocket(true).await?;
         let pipe = MessagePipe::from_socket(ws, credentials);
         Ok(pipe.stream())
     }
@@ -513,11 +529,13 @@ impl<S: Store> Manager<S, Registered> {
             mode: ReceivingMode,
         }
 
+        let push_service = self.identified_push_service();
+
         let init = StreamState {
             encrypted_messages: Box::pin(self.receive_messages_encrypted().await?),
-            message_receiver: MessageReceiver::new(self.identified_push_service()),
+            message_receiver: MessageReceiver::new(push_service.clone()),
             service_cipher: self.new_service_cipher()?,
-            push_service: self.identified_push_service(),
+            push_service,
             store: self.store.clone(),
             groups_manager: self.groups_manager()?,
             mode,
@@ -604,6 +622,7 @@ impl<S: Store> Manager<S, Registered> {
                                     &mut state.store,
                                     &mut state.push_service,
                                     content.clone(),
+                                    None,
                                 )
                                 .await
                                 {
@@ -708,7 +727,13 @@ impl<S: Store> Manager<S, Registered> {
         };
 
         let mut push_service = self.identified_push_service();
-        save_message(&mut self.store, &mut push_service, content).await?;
+        save_message(
+            &mut self.store,
+            &mut push_service,
+            content,
+            Some(Thread::Contact(recipient.uuid)),
+        )
+        .await?;
 
         Ok(())
     }
@@ -740,6 +765,9 @@ impl<S: Store> Manager<S, Registered> {
         timestamp: u64,
     ) -> Result<(), Error<S::Error>> {
         let mut content_body = message.into();
+        let master_key_bytes = master_key_bytes
+            .try_into()
+            .expect("Master key bytes to be of size 32.");
 
         // Only update the expiration timer if it is not set.
         match content_body {
@@ -750,11 +778,7 @@ impl<S: Store> Manager<S, Registered> {
                 // Set the expire timer to None for errors.
                 let store_expire_timer = self
                     .store
-                    .expire_timer(&Thread::Group(
-                        master_key_bytes
-                            .try_into()
-                            .expect("Master key bytes to be of size 32."),
-                    ))
+                    .expire_timer(&Thread::Group(master_key_bytes))
                     .unwrap_or_default();
 
                 *timer = store_expire_timer;
@@ -765,7 +789,7 @@ impl<S: Store> Manager<S, Registered> {
 
         let mut groups_manager = self.groups_manager()?;
         let Some(group) =
-            upsert_group(&self.store, &mut groups_manager, master_key_bytes, &0).await?
+            upsert_group(&self.store, &mut groups_manager, &master_key_bytes, &0).await?
         else {
             return Err(Error::UnknownGroup);
         };
@@ -807,7 +831,13 @@ impl<S: Store> Manager<S, Registered> {
         };
 
         let mut push_service = self.identified_push_service();
-        save_message(&mut self.store, &mut push_service, content).await?;
+        save_message(
+            &mut self.store,
+            &mut push_service,
+            content,
+            Some(Thread::Group(master_key_bytes)),
+        )
+        .await?;
 
         Ok(())
     }
@@ -823,14 +853,23 @@ impl<S: Store> Manager<S, Registered> {
         &self,
         attachment_pointer: &AttachmentPointer,
     ) -> Result<Vec<u8>, Error<S::Error>> {
+        let expected_digest = attachment_pointer
+            .digest
+            .as_ref()
+            .ok_or_else(|| Error::UnexpectedAttachmentChecksum)?;
+
         let mut service = self.identified_push_service();
         let mut attachment_stream = service.get_attachment(attachment_pointer).await?;
 
         // We need the whole file for the crypto to check out
         let mut ciphertext = Vec::new();
         let len = attachment_stream.read_to_end(&mut ciphertext).await?;
-
         trace!("downloaded encrypted attachment of {} bytes", len);
+
+        let digest = sha2::Sha256::digest(&ciphertext);
+        if &digest[..] != expected_digest {
+            return Err(Error::UnexpectedAttachmentChecksum);
+        }
 
         let key: [u8; 64] = attachment_pointer.key().try_into()?;
         decrypt_in_place(key, &mut ciphertext)?;
@@ -870,7 +909,7 @@ impl<S: Store> Manager<S, Registered> {
             uuid: self.state.data.service_ids.aci,
         };
 
-        let identified_websocket = self.identified_websocket().await?;
+        let identified_websocket = self.identified_websocket(false).await?;
         let unidentified_websocket = self.unidentified_websocket().await?;
 
         Ok(MessageSender::new(
@@ -1015,13 +1054,17 @@ async fn upsert_group<S: Store>(
     Ok(store.group(master_key_bytes.try_into()?)?)
 }
 
+/// Save a message into the store.
+/// Note that `override_thread` can be used to specify the thread the message will be stored in.
+/// This is required when storing outgoing messages, as in this case the appropriate storage place cannot be derived from the message itself.
 async fn save_message<S: Store>(
     store: &mut S,
     push_service: &mut HyperPushService,
     message: Content,
+    override_thread: Option<Thread>,
 ) -> Result<(), Error<S::Error>> {
     // derive the thread from the message type
-    let thread = Thread::try_from(&message)?;
+    let thread = override_thread.unwrap_or(Thread::try_from(&message)?);
 
     // only save DataMessage and SynchronizeMessage (sent)
     let message = match message.body {
@@ -1082,7 +1125,7 @@ async fn save_message<S: Store>(
                         profile_key: profile_key.bytes.to_vec(),
                         color: None,
                         blocked: false,
-                        expire_timer: 0,
+                        expire_timer: data_message.expire_timer.unwrap_or_default(),
                         inbox_position: 0,
                         archived: false,
                         avatar: None,
@@ -1094,6 +1137,10 @@ async fn save_message<S: Store>(
                 }
 
                 store.upsert_profile_key(&sender_uuid, profile_key)?;
+            }
+
+            if let Some(expire_timer) = data_message.expire_timer {
+                store.update_expire_timer(&thread, expire_timer)?;
             }
 
             match data_message {

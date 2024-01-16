@@ -4,8 +4,9 @@ use std::{fmt, ops::RangeBounds, time::SystemTime};
 
 use libsignal_service::{
     content::{ContentBody, Metadata},
-    groups_v2::Group,
+    groups_v2::{Group, Timer},
     models::Contact,
+    pre_keys::PreKeysStore,
     prelude::{Content, ProfileKey, Uuid, UuidError},
     proto::{
         sync_message::{self, Sent},
@@ -42,25 +43,6 @@ pub trait StateStore {
 
     /// Clear registration data (including keys), but keep received messages, groups and contacts.
     fn clear_registration(&mut self) -> Result<(), Self::StateStoreError>;
-}
-
-/// Stores the keys published ahead of time, pre-keys
-///
-/// <https://signal.org/docs/specifications/x3dh/>
-pub trait PreKeyStoreExt {
-    type PreKeyStoreExtError: StoreError;
-
-    fn pre_keys_offset_id(&self) -> Result<u32, Self::PreKeyStoreExtError>;
-
-    fn set_pre_keys_offset_id(&mut self, id: u32) -> Result<(), Self::PreKeyStoreExtError>;
-
-    fn next_signed_pre_key_id(&self) -> Result<u32, Self::PreKeyStoreExtError>;
-
-    fn next_pq_pre_key_id(&self) -> Result<u32, Self::PreKeyStoreExtError>;
-
-    fn set_next_signed_pre_key_id(&mut self, id: u32) -> Result<(), Self::PreKeyStoreExtError>;
-
-    fn set_next_pq_pre_key_id(&mut self, id: u32) -> Result<(), Self::PreKeyStoreExtError>;
 }
 
 /// Stores messages, contacts, groups and profiles
@@ -115,7 +97,7 @@ pub trait ContentsStore {
                 timestamp: SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
                     .unwrap_or_default()
-                    .as_secs(),
+                    .as_millis() as u64,
                 needs_receipt: false,
                 unidentified_sender: false,
             },
@@ -167,6 +149,34 @@ pub trait ContentsStore {
                 .group(*key)?
                 .and_then(|g| g.disappearing_messages_timer)
                 .map(|t| t.duration)),
+        }
+    }
+
+    /// Update the expire timer from a [Thread], which corresponds to either [Contact::expire_timer]
+    /// or [Group::disappearing_messages_timer].
+    fn update_expire_timer(
+        &mut self,
+        thread: &Thread,
+        timer: u32,
+    ) -> Result<(), Self::ContentsStoreError> {
+        log::trace!("update expire timer of {:?} to {}", thread, timer);
+        match thread {
+            Thread::Contact(uuid) => {
+                let contact = self.contact_by_id(uuid)?;
+                if let Some(mut contact) = contact {
+                    contact.expire_timer = timer;
+                    self.save_contact(&contact)?;
+                }
+                Ok(())
+            }
+            Thread::Group(key) => {
+                let group = self.group(*key)?;
+                if let Some(mut g) = group {
+                    g.disappearing_messages_timer = Some(Timer { duration: timer });
+                    self.save_group(*key, &g)?;
+                }
+                Ok(())
+            }
         }
     }
 
@@ -234,7 +244,7 @@ pub trait ContentsStore {
 /// The manager store trait combining all other stores into a single one
 pub trait Store:
     StateStore<StateStoreError = Self::Error>
-    + PreKeyStoreExt<PreKeyStoreExtError = Self::Error>
+    + PreKeysStore
     + ContentsStore<ContentsStoreError = Self::Error>
     + ProtocolStore
     + SenderKeyStore

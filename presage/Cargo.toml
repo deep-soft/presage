@@ -6,8 +6,8 @@ authors = ["Gabriel Féron <g@leirbag.net>"]
 edition = "2021"
 
 [dependencies]
-libsignal-service = { git = "https://github.com/whisperfish/libsignal-service-rs", rev = "2e3bd5813aa54abe354a46e78ac0ee164027b985" }
-libsignal-service-hyper = { git = "https://github.com/whisperfish/libsignal-service-rs", rev = "2e3bd5813aa54abe354a46e78ac0ee164027b985" }
+libsignal-service = { git = "https://github.com/whisperfish/libsignal-service-rs", rev = "9d55addebe010f0acbcabdfc02ab41979c1863e0" }
+libsignal-service-hyper = { git = "https://github.com/whisperfish/libsignal-service-rs", rev = "9d55addebe010f0acbcabdfc02ab41979c1863e0" }
 
 base64 = "0.21"
 futures = "0.3"
@@ -19,6 +19,7 @@ thiserror = "1.0"
 url = "2.2"
 parking_lot = "0.11"
 tokio = { version = "1.0", default-features = false, features = ["sync", "time"] }
+sha2 = "0.10.8"
 
 [dev-dependencies]
 quickcheck = "1.0.3"

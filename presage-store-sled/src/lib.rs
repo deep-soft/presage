@@ -13,6 +13,7 @@ use presage::libsignal_service::{
     content::Content,
     groups_v2::Group,
     models::Contact,
+    pre_keys::PreKeysStore,
     prelude::{ProfileKey, Uuid},
     protocol::{
         Direction, GenericSignedPreKey, IdentityKey, IdentityKeyPair, IdentityKeyStore,
@@ -24,7 +25,7 @@ use presage::libsignal_service::{
     session_store::SessionStoreExt,
     Profile, ServiceAddress,
 };
-use presage::store::{ContentExt, ContentsStore, PreKeyStoreExt, StateStore, Store, Thread};
+use presage::store::{ContentExt, ContentsStore, StateStore, Store, Thread};
 use presage::{manager::RegistrationData, proto::verified};
 use prost::Message;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -354,7 +355,7 @@ fn migrate(
         Ok(())
     };
 
-    if let Err(error) = run_migrations() {
+    if let Err(SledStoreError::MigrationConflict) = run_migrations() {
         match migration_conflict_strategy {
             MigrationConflictStrategy::BackupAndDrop => {
                 let mut new_db_path = db_path.to_path_buf();
@@ -372,7 +373,7 @@ fn migrate(
             MigrationConflictStrategy::Drop => {
                 fs_extra::dir::remove(db_path)?;
             }
-            MigrationConflictStrategy::Raise => return Err(error),
+            MigrationConflictStrategy::Raise => return Err(SledStoreError::MigrationConflict),
         }
     }
 
@@ -406,6 +407,7 @@ impl StateStore for SledStore {
         db.drop_tree(SLED_TREE_SENDER_KEYS)?;
         db.drop_tree(SLED_TREE_SESSIONS)?;
         db.drop_tree(SLED_TREE_SIGNED_PRE_KEYS)?;
+        db.drop_tree(SLED_TREE_KYBER_PRE_KEYS)?;
         db.drop_tree(SLED_TREE_STATE)?;
         db.drop_tree(SLED_TREE_PROFILES)?;
         db.drop_tree(SLED_TREE_PROFILE_KEYS)?;
@@ -603,39 +605,43 @@ impl ContentsStore for SledStore {
     }
 }
 
-impl PreKeyStoreExt for SledStore {
-    type PreKeyStoreExtError = SledStoreError;
-
-    fn pre_keys_offset_id(&self) -> Result<u32, SledStoreError> {
+impl PreKeysStore for SledStore {
+    fn pre_keys_offset_id(&self) -> Result<u32, SignalProtocolError> {
         Ok(self
-            .get(SLED_TREE_STATE, SLED_KEY_PRE_KEYS_OFFSET_ID)?
+            .get(SLED_TREE_STATE, SLED_KEY_PRE_KEYS_OFFSET_ID)
+            .map_err(|_| SignalProtocolError::InvalidPreKeyId)?
             .unwrap_or(0))
     }
 
-    fn set_pre_keys_offset_id(&mut self, id: u32) -> Result<(), SledStoreError> {
-        self.insert(SLED_TREE_STATE, SLED_KEY_PRE_KEYS_OFFSET_ID, id)?;
+    fn set_pre_keys_offset_id(&mut self, id: u32) -> Result<(), SignalProtocolError> {
+        self.insert(SLED_TREE_STATE, SLED_KEY_PRE_KEYS_OFFSET_ID, id)
+            .map_err(|_| SignalProtocolError::InvalidPreKeyId)?;
         Ok(())
     }
 
-    fn next_signed_pre_key_id(&self) -> Result<u32, SledStoreError> {
+    fn next_signed_pre_key_id(&self) -> Result<u32, SignalProtocolError> {
         Ok(self
-            .get(SLED_TREE_STATE, SLED_KEY_NEXT_SIGNED_PRE_KEY_ID)?
+            .get(SLED_TREE_STATE, SLED_KEY_NEXT_SIGNED_PRE_KEY_ID)
+            .map_err(|_| SignalProtocolError::InvalidSignedPreKeyId)?
             .unwrap_or(0))
     }
 
-    fn set_next_signed_pre_key_id(&mut self, id: u32) -> Result<(), SledStoreError> {
-        self.insert(SLED_TREE_STATE, SLED_KEY_NEXT_SIGNED_PRE_KEY_ID, id)?;
+    fn set_next_signed_pre_key_id(&mut self, id: u32) -> Result<(), SignalProtocolError> {
+        self.insert(SLED_TREE_STATE, SLED_KEY_NEXT_SIGNED_PRE_KEY_ID, id)
+            .map_err(|_| SignalProtocolError::InvalidSignedPreKeyId)?;
         Ok(())
     }
 
-    fn next_pq_pre_key_id(&self) -> Result<u32, SledStoreError> {
+    fn next_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError> {
         Ok(self
-            .get(SLED_TREE_STATE, SLED_KEY_NEXT_PQ_PRE_KEY_ID)?
+            .get(SLED_TREE_STATE, SLED_KEY_NEXT_PQ_PRE_KEY_ID)
+            .map_err(|_| SignalProtocolError::InvalidKyberPreKeyId)?
             .unwrap_or(0))
     }
 
-    fn set_next_pq_pre_key_id(&mut self, id: u32) -> Result<(), SledStoreError> {
-        self.insert(SLED_TREE_STATE, SLED_KEY_NEXT_PQ_PRE_KEY_ID, id)?;
+    fn set_next_pq_pre_key_id(&mut self, id: u32) -> Result<(), SignalProtocolError> {
+        self.insert(SLED_TREE_STATE, SLED_KEY_NEXT_PQ_PRE_KEY_ID, id)
+            .map_err(|_| SignalProtocolError::InvalidKyberPreKeyId)?;
         Ok(())
     }
 }
