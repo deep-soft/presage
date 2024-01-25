@@ -1,4 +1,5 @@
-# 2023-06-24 10:00
+# 2024-01-25 16:00
+# sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
 name: act - Build
 
 on:
@@ -10,6 +11,12 @@ on:
 #  pull_request:
   workflow_dispatch:
     inputs:
+      # if: ${{ inputs.patch_presage_cargo_toml }}
+      patch_presage_cargo_toml:
+        description: 'patch presage cargo.toml'
+        type: boolean
+        required: true
+        default: false
       # if: ${{ inputs.build_release_windows }}
       build_release_windows:
         description: Build release Windows
@@ -61,7 +68,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
+      - name: Patch presage/cargo.toml
+        if: ${{ inputs.patch_presage_cargo_toml }}
+        shell: bash
+        run: |
+          sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
+
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -115,7 +128,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
+      - name: Patch presage/cargo.toml
+        if: ${{ inputs.patch_presage_cargo_toml }}
+        shell: bash
+        run: |
+          sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
+
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -169,7 +188,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
+      - name: Patch presage/cargo.toml
+        if: ${{ inputs.patch_presage_cargo_toml }}
+        shell: bash
+        run: |
+          sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
+
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -198,6 +223,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Patch presage/cargo.toml
+        if: ${{ inputs.patch_presage_cargo_toml }}
+        shell: bash
+        run: |
+          sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
+
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -218,7 +249,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
+      - name: Patch presage/cargo.toml
+        if: ${{ inputs.patch_presage_cargo_toml }}
+        shell: bash
+        run: |
+          sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
+
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
