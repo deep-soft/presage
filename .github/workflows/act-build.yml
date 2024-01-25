@@ -77,7 +77,8 @@ jobs:
 
       - name: Install protoc
         run: |
-          winget install protoc
+          rem winget install protoc
+          choco install protoc
 
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
