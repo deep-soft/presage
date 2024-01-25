@@ -77,7 +77,6 @@ jobs:
 
       - name: Install protoc
         run: |
-          rem winget install protoc
           choco install protoc
 
       - name: Setup Rust toolchain
