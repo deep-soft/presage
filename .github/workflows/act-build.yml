@@ -75,6 +75,10 @@ jobs:
         run: |
           sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
 
+      - name: Install protoc
+        run: |
+          winget install protoc
+
       - name: Setup Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
