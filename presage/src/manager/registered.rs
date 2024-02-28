@@ -12,28 +12,31 @@ use libsignal_service::groups_v2::{decrypt_group, Group, GroupsManager, InMemory
 use libsignal_service::messagepipe::{Incoming, MessagePipe, ServiceCredentials};
 use libsignal_service::models::Contact;
 use libsignal_service::prelude::phonenumber::PhoneNumber;
-use libsignal_service::prelude::Uuid;
+use libsignal_service::prelude::{ProtobufMessage, Uuid};
 use libsignal_service::profile_cipher::ProfileCipher;
 use libsignal_service::proto::data_message::Delete;
 use libsignal_service::proto::{
-    sync_message, AttachmentPointer, DataMessage, EditMessage, GroupContextV2, NullMessage,
-    SyncMessage, Verified,
+    sync_message::{self, sticker_pack_operation, StickerPackOperation},
+    AttachmentPointer, DataMessage, EditMessage, GroupContextV2, NullMessage, SyncMessage,
+    Verified,
 };
 use libsignal_service::protocol::SenderCertificate;
 use libsignal_service::protocol::{PrivateKey, PublicKey};
-use libsignal_service::provisioning::generate_registration_id;
+use libsignal_service::provisioning::{generate_registration_id, ProvisioningError};
 use libsignal_service::push_service::{
     AccountAttributes, DeviceCapabilities, PushService, ServiceError, ServiceIdType, ServiceIds,
     WhoAmIResponse, DEFAULT_DEVICE_ID,
 };
 use libsignal_service::receiver::MessageReceiver;
 use libsignal_service::sender::{AttachmentSpec, AttachmentUploadError};
+use libsignal_service::sticker_cipher::derive_key;
 use libsignal_service::unidentified_access::UnidentifiedAccess;
 use libsignal_service::utils::{
     serde_optional_private_key, serde_optional_public_key, serde_private_key, serde_public_key,
     serde_signaling_key,
 };
 use libsignal_service::websocket::SignalWebSocket;
+use libsignal_service::zkgroup::groups::{GroupMasterKey, GroupSecretParams};
 use libsignal_service::zkgroup::profiles::ProfileKey;
 use libsignal_service::{cipher, AccountManager, Profile, ServiceAddress};
 use libsignal_service_hyper::push_service::HyperPushService;
@@ -46,8 +49,8 @@ use tokio::sync::Mutex;
 
 use crate::cache::CacheCell;
 use crate::serde::serde_profile_key;
-use crate::store::{Store, Thread};
-use crate::{Error, Manager};
+use crate::store::{ContentsStore, Sticker, StickerPack, StickerPackManifest, Store, Thread};
+use crate::{AvatarBytes, Error, Manager};
 
 type ServiceCipher<S> = cipher::ServiceCipher<S, StdRng>;
 type MessageSender<S> = libsignal_service::prelude::MessageSender<HyperPushService, S, StdRng>;
@@ -455,6 +458,8 @@ impl<S: Store> Manager<S, Registered> {
         profile_key: ProfileKey,
     ) -> Result<Profile, Error<S::Error>> {
         // Check if profile is cached.
+        // TODO: Create a migration in the store removing all profiles.
+        // TODO: Is there some way to know if this is outdated?
         if let Some(profile) = self.store.profile(uuid, profile_key).ok().flatten() {
             return Ok(profile);
         }
@@ -468,7 +473,87 @@ impl<S: Store> Manager<S, Registered> {
         Ok(profile)
     }
 
-    /// Get an iterator of messages in a thread, optionally starting from a point in time.
+    pub async fn retrieve_group_avatar(
+        &mut self,
+        context: GroupContextV2,
+    ) -> Result<Option<AvatarBytes>, Error<S::Error>> {
+        let master_key_bytes = context
+            .master_key()
+            .try_into()
+            .expect("Master key bytes to be of size 32.");
+
+        // Check if group avatar is cached.
+        // TODO: Is there some way to know if this is outdated?
+        if let Some(avatar) = self.store.group_avatar(master_key_bytes).ok().flatten() {
+            return Ok(Some(avatar));
+        }
+
+        let mut gm = self.groups_manager()?;
+        let Some(group) = upsert_group(
+            self.store(),
+            &mut gm,
+            context.master_key(),
+            &context.revision(),
+        )
+        .await?
+        else {
+            return Ok(None);
+        };
+
+        // Empty path means no avatar was set.
+        if group.avatar.is_empty() {
+            return Ok(None);
+        }
+
+        let avatar = gm
+            .retrieve_avatar(
+                &group.avatar,
+                GroupSecretParams::derive_from_master_key(GroupMasterKey::new(master_key_bytes)),
+            )
+            .await?;
+        if let Some(avatar) = &avatar {
+            let _ = self.store.save_group_avatar(master_key_bytes, avatar);
+        }
+        Ok(avatar)
+    }
+
+    pub async fn retrieve_profile_avatar_by_uuid(
+        &mut self,
+        uuid: Uuid,
+        profile_key: ProfileKey,
+    ) -> Result<Option<AvatarBytes>, Error<S::Error>> {
+        // Check if profile avatar is cached.
+        // TODO: Is there some way to know if this is outdated?
+        if let Some(avatar) = self.store.profile_avatar(uuid, profile_key).ok().flatten() {
+            return Ok(Some(avatar));
+        }
+
+        let profile = if let Some(profile) = self.store.profile(uuid, profile_key).ok().flatten() {
+            profile
+        } else {
+            self.retrieve_profile_by_uuid(uuid, profile_key).await?
+        };
+
+        let Some(avatar) = profile.avatar.as_ref() else {
+            return Ok(None);
+        };
+
+        let mut service = self.unidentified_push_service();
+
+        let mut avatar_stream = service.retrieve_profile_avatar(avatar).await?;
+        // 10MB is what Signal Android allocates
+        let mut contents = Vec::with_capacity(10 * 1024 * 1024);
+        let len = avatar_stream.read_to_end(&mut contents).await?;
+        contents.truncate(len);
+
+        let cipher = ProfileCipher::from(profile_key);
+
+        let avatar = cipher.decrypt_avatar(&contents)?;
+        let _ = self.store.save_profile_avatar(uuid, profile_key, &avatar);
+        Ok(Some(avatar))
+    }
+
+    /// Gets an iterator of messages in a thread, optionally starting from a point in time.
     pub fn messages(
         &self,
         thread: &Thread,
@@ -521,7 +606,7 @@ impl<S: Store> Manager<S, Registered> {
         &mut self,
         mode: ReceivingMode,
     ) -> Result<impl Stream<Item = Content>, Error<S::Error>> {
-        struct StreamState<S, C> {
+        struct StreamState<S, C: ContentsStore + Send + Sync> {
             encrypted_messages: S,
             message_receiver: MessageReceiver<HyperPushService>,
             service_cipher: ServiceCipher<C>,
@@ -578,6 +663,64 @@ impl<S: Store> Manager<S, Registered> {
                                     }
                                 }
 
+                                // sticker pack operations
+                                if let ContentBody::SynchronizeMessage(SyncMessage {
+                                    sticker_pack_operation,
+                                    ..
+                                }) = &content.body
+                                {
+                                    for operation in sticker_pack_operation {
+                                        match operation.r#type() {
+                                            sticker_pack_operation::Type::Install => {
+                                                let store = state.store.clone();
+                                                let push_service = state.push_service.clone();
+                                                let operation = operation.clone();
+
+                                                // download stickers in the background
+                                                tokio::spawn(async move {
+                                                    match download_sticker_pack(
+                                                        store,
+                                                        push_service,
+                                                        &operation,
+                                                    )
+                                                    .await
+                                                    {
+                                                        Ok(sticker_pack) => {
+                                                            debug!(
+                                                                "downloaded sticker pack: {} made by {}",
+                                                                sticker_pack.manifest.title,
+                                                                sticker_pack.manifest.author
+                                                            );
+                                                        }
+                                                        Err(error) => error!(
+                                                            "failed to download sticker pack: {error}"
+                                                        ),
+                                                    }
+                                                });
+                                            }
+                                            sticker_pack_operation::Type::Remove => {
+                                                match state
+                                                    .store
+                                                    .remove_sticker_pack(operation.pack_id())
+                                                {
+                                                    Ok(removed) => {
+                                                        debug!(
+                                                            "removed stick pack: present={removed}"
+                                                        )
+                                                    }
+                                                    Err(error) => {
+                                                        error!(
+                                                            "failed to remove sticker pack: {error}"
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    continue;
+                                }
+
+                                // group update
                                 if let ContentBody::DataMessage(DataMessage {
                                     group_v2:
                                         Some(GroupContextV2 {
@@ -881,6 +1024,95 @@ impl<S: Store> Manager<S, Registered> {
         Ok(ciphertext)
     }
 
+    /// Gets an iterator over installed sticker packs
+    pub async fn sticker_packs(&self) -> Result<S::StickerPacksIter, Error<S::Error>> {
+        Ok(self.store.sticker_packs()?)
+    }
+
+    /// Gets a sticker pack by id
+    pub async fn sticker_pack(
+        &self,
+        pack_id: &[u8],
+    ) -> Result<Option<StickerPack>, Error<S::Error>> {
+        Ok(self.store.sticker_pack(pack_id)?)
+    }
+
+    /// Gets the metadata of a sticker
+    pub async fn sticker_metadata(
+        &mut self,
+        pack_id: &[u8],
+        sticker_id: u32,
+    ) -> Result<Option<Sticker>, Error<S::Error>> {
+        Ok(self.store.sticker_pack(pack_id)?.and_then(|pack| {
+            pack.manifest
+                .stickers
+                .iter()
+                .find(|&x| x.id == sticker_id)
+                .cloned()
+        }))
+    }
+
+    /// Installs a sticker pack and notifies other registered devices
+    pub async fn install_sticker_pack(
+        &mut self,
+        pack_id: &[u8],
+        pack_key: &[u8],
+    ) -> Result<(), Error<S::Error>> {
+        let sticker_pack_operation = StickerPackOperation {
+            pack_id: Some(pack_id.to_vec()),
+            pack_key: Some(pack_key.to_vec()),
+            r#type: Some(sticker_pack_operation::Type::Install as i32),
+        };
+
+        let push_service = self.unidentified_push_service();
+        download_sticker_pack(self.store.clone(), push_service, &sticker_pack_operation).await?;
+
+        // Sync the change with the other devices
+        let sync_message = SyncMessage {
+            sticker_pack_operation: vec![sticker_pack_operation],
+            ..Default::default()
+        };
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis() as u64;
+
+        self.send_message(self.state.data.aci(), sync_message, timestamp)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Removes an installed sticker pack
+    pub async fn remove_sticker_pack(
+        &mut self,
+        pack_id: &[u8],
+        pack_key: &[u8],
+    ) -> Result<(), Error<S::Error>> {
+        // Sync the change with the other clients
+        let sync_message = SyncMessage {
+            sticker_pack_operation: vec![StickerPackOperation {
+                pack_id: Some(pack_id.to_vec()),
+                pack_key: Some(pack_key.to_vec()), // The pack key might not be neccesary in the message
+                r#type: Some(sticker_pack_operation::Type::Remove as i32),
+            }],
+            ..Default::default()
+        };
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards")
+            .as_millis() as u64;
+
+        self.send_message(self.state.data.aci(), sync_message, timestamp)
+            .await?;
+
+        self.store.remove_sticker_pack(pack_id)?;
+
+        Ok(())
+    }
+
     pub async fn send_session_reset(
         &mut self,
         recipient: &ServiceAddress,
@@ -1057,6 +1289,83 @@ async fn upsert_group<S: Store>(
     }
 
     Ok(store.group(master_key_bytes.try_into()?)?)
+}
+
+/// Download and decrypt a sticker manifest
+async fn download_sticker_pack<C: ContentsStore>(
+    mut store: C,
+    mut push_service: HyperPushService,
+    operation: &StickerPackOperation,
+) -> Result<StickerPack, Error<C::ContentsStoreError>> {
+    debug!("downloading sticker pack");
+    let pack_key = operation.pack_key();
+    let pack_id = operation.pack_id();
+    let key = derive_key(pack_key)?;
+
+    let mut ciphertext = Vec::new();
+
+    let len = push_service
+        .get_sticker_pack_manifest(&hex::encode(pack_id))
+        .await?
+        .read_to_end(&mut ciphertext)
+        .await?;
+
+    trace!(
+        "downloaded encrypted sticker pack manifest of {} bytes",
+        len
+    );
+
+    decrypt_in_place(key, &mut ciphertext)?;
+
+    let mut sticker_pack_manifest: StickerPackManifest =
+        libsignal_service::proto::Pack::decode(ciphertext.as_slice())
+            .map_err(ProvisioningError::from)?
+            .into();
+
+    for sticker in &mut sticker_pack_manifest.stickers {
+        match download_sticker(&mut store, &mut push_service, pack_id, pack_key, sticker.id).await {
+            Ok(decrypted_sticker_bytes) => {
+                debug!("downloaded sticker {}", sticker.id);
+                sticker.bytes = Some(decrypted_sticker_bytes);
+            }
+            Err(error) => error!("failed to download sticker {}: {error}", sticker.id),
+        }
+    }
+
+    let sticker_pack = StickerPack {
+        id: pack_id.to_vec(),
+        key: pack_key.to_vec(),
+        manifest: sticker_pack_manifest,
+    };
+
+    // save everything in store
+    store.add_sticker_pack(&sticker_pack)?;
+
+    Ok(sticker_pack)
+}
+
+/// Downloads and decrypts a single sticker
+async fn download_sticker<C: ContentsStore>(
+    _store: &mut C,
+    push_service: &mut HyperPushService,
+    pack_id: &[u8],
+    pack_key: &[u8],
+    sticker_id: u32,
+) -> Result<Vec<u8>, Error<C::ContentsStoreError>> {
+    let key = derive_key(pack_key)?;
+
+    let mut sticker_stream = push_service
+        .get_sticker(&hex::encode(pack_id), sticker_id)
+        .await?;
+
+    let mut ciphertext = Vec::new();
+    let len = sticker_stream.read_to_end(&mut ciphertext).await?;
+
+    trace!("downloaded encrypted sticker of {} bytes", len);
+
+    decrypt_in_place(key, &mut ciphertext)?;
+
+    Ok(ciphertext)
 }
 
 /// Save a message into the store.

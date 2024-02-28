@@ -26,8 +26,8 @@ use presage::libsignal_service::{
     session_store::SessionStoreExt,
     Profile, ServiceAddress,
 };
-use presage::store::{ContentExt, ContentsStore, StateStore, Store, Thread};
-use presage::{manager::RegistrationData, proto::verified};
+use presage::store::{ContentExt, ContentsStore, StateStore, StickerPack, Store, Thread};
+use presage::{manager::RegistrationData, proto::verified, AvatarBytes};
 use prost::Message;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -42,6 +42,7 @@ pub use error::SledStoreError;
 
 const SLED_TREE_CONTACTS: &str = "contacts";
 const SLED_TREE_GROUPS: &str = "groups";
+const SLED_TREE_GROUP_AVATARS: &str = "group_avatars";
 const SLED_TREE_IDENTITIES: &str = "identities";
 const SLED_TREE_PRE_KEYS: &str = "pre_keys";
 const SLED_TREE_SENDER_KEYS: &str = "sender_keys";
@@ -51,7 +52,9 @@ const SLED_TREE_KYBER_PRE_KEYS: &str = "kyber_pre_keys";
 const SLED_TREE_STATE: &str = "state";
 const SLED_TREE_THREADS_PREFIX: &str = "threads";
 const SLED_TREE_PROFILES: &str = "profiles";
+const SLED_TREE_PROFILE_AVATARS: &str = "profile_avatars";
 const SLED_TREE_PROFILE_KEYS: &str = "profile_keys";
+const SLED_TREE_STICKER_PACKS: &str = "sticker_packs";
 
 const SLED_KEY_NEXT_SIGNED_PRE_KEY_ID: &str = "next_signed_pre_key_id";
 const SLED_KEY_NEXT_PQ_PRE_KEY_ID: &str = "next_pq_pre_key_id";
@@ -93,11 +96,13 @@ pub enum SchemaVersion {
     V1 = 1,
     V2 = 2,
     V3 = 3,
+    // Introduction of avatars, requires dropping all profiles from the cache
+    V4 = 4,
 }
 
 impl SchemaVersion {
     fn current() -> SchemaVersion {
-        Self::V3
+        Self::V4
     }
 
     /// return an iterator on all the necessary migration steps from another version
@@ -110,6 +115,7 @@ impl SchemaVersion {
             1 => SchemaVersion::V1,
             2 => SchemaVersion::V2,
             3 => SchemaVersion::V3,
+            4 => SchemaVersion::V4,
             _ => unreachable!("oops, this not supposed to happen!"),
         })
     }
@@ -347,6 +353,12 @@ fn migrate(
                     db.drop_tree(SLED_TREE_GROUPS)?;
                     db.flush()?;
                 }
+                SchemaVersion::V4 => {
+                    debug!("migrating from schema v3 to v4: dropping profile cache");
+                    let db = store.write();
+                    db.drop_tree(SLED_TREE_PROFILES)?;
+                    db.flush()?;
+                }
                 _ => return Err(SledStoreError::MigrationConflict),
             }
 
@@ -425,6 +437,7 @@ impl ContentsStore for SledStore {
     type ContactsIter = SledContactsIter;
     type GroupsIter = SledGroupsIter;
     type MessagesIter = SledMessagesIter;
+    type StickerPacksIter = SledStickerPacksIter;
 
     fn clear_contacts(&mut self) -> Result<(), SledStoreError> {
         self.write().drop_tree(SLED_TREE_CONTACTS)?;
@@ -479,6 +492,22 @@ impl ContentsStore for SledStore {
         group: &Group,
     ) -> Result<(), SledStoreError> {
         self.insert(SLED_TREE_GROUPS, master_key, group)?;
+        Ok(())
+    }
+
+    fn group_avatar(
+        &self,
+        master_key_bytes: GroupMasterKeyBytes,
+    ) -> Result<Option<AvatarBytes>, SledStoreError> {
+        self.get(SLED_TREE_GROUP_AVATARS, master_key_bytes)
+    }
+
+    fn save_group_avatar(
+        &self,
+        master_key: GroupMasterKeyBytes,
+        avatar: &AvatarBytes,
+    ) -> Result<(), SledStoreError> {
+        self.insert(SLED_TREE_GROUP_AVATARS, master_key, avatar)?;
         Ok(())
     }
 
@@ -604,6 +633,46 @@ impl ContentsStore for SledStore {
         let key = self.profile_key_for_uuid(uuid, key);
         self.get(SLED_TREE_PROFILES, key)
     }
+
+    fn save_profile_avatar(
+        &mut self,
+        uuid: Uuid,
+        key: ProfileKey,
+        avatar: &AvatarBytes,
+    ) -> Result<(), SledStoreError> {
+        let key = self.profile_key_for_uuid(uuid, key);
+        self.insert(SLED_TREE_PROFILE_AVATARS, key, avatar)?;
+        Ok(())
+    }
+
+    fn profile_avatar(
+        &self,
+        uuid: Uuid,
+        key: ProfileKey,
+    ) -> Result<Option<AvatarBytes>, SledStoreError> {
+        let key = self.profile_key_for_uuid(uuid, key);
+        self.get(SLED_TREE_PROFILE_AVATARS, key)
+    }
+
+    fn add_sticker_pack(&mut self, pack: &StickerPack) -> Result<(), SledStoreError> {
+        self.insert(SLED_TREE_STICKER_PACKS, pack.id.clone(), pack)?;
+        Ok(())
+    }
+
+    fn remove_sticker_pack(&mut self, id: &[u8]) -> Result<bool, SledStoreError> {
+        self.remove(SLED_TREE_STICKER_PACKS, id)
+    }
+
+    fn sticker_pack(&self, id: &[u8]) -> Result<Option<StickerPack>, SledStoreError> {
+        self.get(SLED_TREE_STICKER_PACKS, id)
+    }
+
+    fn sticker_packs(&self) -> Result<Self::StickerPacksIter, SledStoreError> {
+        Ok(SledStickerPacksIter {
+            cipher: self.cipher.clone(),
+            iter: self.read().open_tree(SLED_TREE_STICKER_PACKS)?.iter(),
+        })
+    }
 }
 
 #[async_trait(?Send)]
@@ -657,6 +726,8 @@ impl Store for SledStore {
         let db = self.write();
         db.drop_tree(SLED_TREE_CONTACTS)?;
         db.drop_tree(SLED_TREE_GROUPS)?;
+        db.drop_tree(SLED_TREE_PROFILES)?;
+        db.drop_tree(SLED_TREE_PROFILE_AVATARS)?;
 
         for tree in db
             .tree_names()
@@ -744,6 +815,40 @@ impl Iterator for SledGroupsIter {
                 ))
             },
         ))
+    }
+}
+
+pub struct SledStickerPacksIter {
+    #[cfg(feature = "encryption")]
+    cipher: Option<Arc<presage_store_cipher::StoreCipher>>,
+    iter: sled::Iter,
+}
+
+impl Iterator for SledStickerPacksIter {
+    type Item = Result<StickerPack, SledStoreError>;
+
+    #[cfg(feature = "encryption")]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()?
+            .map_err(SledStoreError::from)
+            .and_then(|(_key, value)| {
+                if let Some(cipher) = self.cipher.as_ref() {
+                    cipher.decrypt_value(&value).map_err(SledStoreError::from)
+                } else {
+                    serde_json::from_slice(&value).map_err(SledStoreError::from)
+                }
+            })
+            .into()
+    }
+
+    #[cfg(not(feature = "encryption"))]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()?
+            .map_err(SledStoreError::from)
+            .and_then(|(_key, value)| serde_json::from_slice(&value).map_err(SledStoreError::from))
+            .into()
     }
 }
 
