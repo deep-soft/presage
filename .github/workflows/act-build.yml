@@ -192,6 +192,7 @@ jobs:
 
       - name: Build
         run: |
+          cargo build --all-targets --all-features --release
           cargo build --target x86_64-unknown-linux-gnu --all-features --release
 
 # cargo build --all-targets ${{ matrix.cargo_flags }}
