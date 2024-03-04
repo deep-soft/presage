@@ -1,4 +1,4 @@
-# 2024-01-25 16:00
+# 2024-03-04 16:00
 # sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
 name: act - Build
 
@@ -51,7 +51,7 @@ on:
 env:
   CARGO_INCREMENTAL: 0
   TAG_NAME: "presage"
-  VERSION: "v.0.5.3"
+  VERSION: "v.0.6.1"
   DEBUG_LS: true
 
 concurrency:
@@ -67,7 +67,40 @@ jobs:
       RUSTFLAGS: -D warnings
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: deep-soft/checkout@v4
+          
+## -- read from toml - begin
+      - name: Read toml package.version
+        uses: deep-soft/toml-action@v1.0.3
+        id: read_toml_version
+        with:
+          file: 'presage/Cargo.toml'
+          field: 'package.version'
+
+      - name: Set env.PROG_VERSION
+        shell: bash
+        run: |
+          echo "PROG_VERSION = ${{ env.PROG_VERSION }}"
+
+          echo "set PROG_VERSION with value from Cargo.toml"
+          _version_=${{ steps.read_toml_version.outputs.value }}
+          prog_version="v"$_version_
+
+          echo "PROG_VERSION = $prog_version"
+          echo "TAG_VERSION=${{ env.PROG_NAME }}-$prog_version"
+
+          echo "set env.PROG_VERSION with value from Cargo.toml"
+          echo "PROG_VERSION=$prog_version" >> $GITHUB_ENV
+          echo "VERSION=$_version_" >> $GITHUB_ENV
+          echo "TAG_VERSION=${{ env.PROG_NAME }}-$prog_version" >> $GITHUB_ENV
+
+      - name: Print env.PROG_VERSION
+        shell: bash
+        run: |
+          echo "show new value for env.PROG_VERSION"
+          echo "PROG_VERSION = ${{ env.PROG_VERSION }}"
+          echo "TAG_VERSION  = ${{ env.TAG_VERSION  }}"
+## -- read from toml - end
 
       - name: Patch presage/cargo.toml
         if: ${{ inputs.patch_presage_cargo_toml }}
@@ -80,18 +113,16 @@ jobs:
           choco install protoc
 
       - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: deep-soft/rust-toolchain@v1
         with:
           toolchain: stable
       
       - name: Configure CI cache
-        uses: Swatinem/rust-cache@v2
+        uses: deep-soft/rust-cache@v2
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target x86_64-pc-windows-msvc --release
+        run:
+          cargo build --target x86_64-pc-windows-msvc --release
 
 ###
 # zip release begin
@@ -99,7 +130,7 @@ jobs:
         uses: deep-soft/zip-release@v2
         with:
           type: 'zip'
-          filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}-${{ github.job }}.zip'
+          filename: '${{ env.TAG_NAME }}-${{ env.PROG_VERSION  }}-${{ github.job }}.zip'
           #directory: '.'
           #path: '.'
           directory: "target/x86_64-pc-windows-msvc/release"
@@ -140,23 +171,30 @@ jobs:
           sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
 
       - name: Install protobuf
+#          #sudo apt-get install -y libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler
+          sudo apt-get install -y protobuf-compiler
 
       - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: deep-soft/rust-toolchain@v1
         with:
           toolchain: stable
       
       - name: Configure CI cache
-        uses: Swatinem/rust-cache@v2
+        uses: deep-soft/rust-cache@v2
+
+#      - name: Build
+#        uses: actions-rs/cargo@v1
+#        with:
+#          command: build
+#          args: --target x86_64-unknown-linux-gnu --release
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --target x86_64-unknown-linux-gnu --release
+        run: |
+          cargo build --target x86_64-unknown-linux-gnu --all-features --release
+
+# cargo build --all-targets ${{ matrix.cargo_flags }}
 
 ###
 # zip release begin
@@ -164,7 +202,7 @@ jobs:
         uses: deep-soft/zip-release@v2
         with:
           type: 'zip'
-          filename: '${{ env.TAG_NAME }}-${{ env.VERSION }}-${{ github.job }}.zip'
+          filename: '${{ env.TAG_NAME }}-${{ env.PROG_VERSION  }}-${{ github.job }}.zip'
           #directory: '.'
           #path: '.'
           directory: "target/x86_64-unknown-linux-gnu/release"
@@ -196,7 +234,7 @@ jobs:
       RUSTFLAGS: -D warnings
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: deep-soft/checkout@v4
 
       - name: Patch presage/cargo.toml
         if: ${{ inputs.patch_presage_cargo_toml }}
@@ -205,24 +243,24 @@ jobs:
           sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
 
       - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: deep-soft/rust-toolchain@v1
         with:
           toolchain: stable
       
       - name: Configure CI cache
-        uses: Swatinem/rust-cache@v2
+        uses: deep-soft/rust-cache@v2
 
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all-targets
+        run: |
+          cargo build --all-targets --all-features
       
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-targets
+        run: |
+          cargo test --all-targets --all-features
+
+      - name: Test docs
+        run: |
+          cargo test --doc --all-features
 
   rustfmt:
     name: rustfmt
@@ -230,7 +268,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: deep-soft/checkout@v4
 
       - name: Patch presage/cargo.toml
         if: ${{ inputs.patch_presage_cargo_toml }}
@@ -239,17 +277,15 @@ jobs:
           sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
 
       - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: deep-soft/rust-toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           components: rustfmt
       
       - name: Check code format
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check
+        run: |
+          cargo fmt -- --check
 
   clippy:
     name: clippy
@@ -257,7 +293,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: deep-soft/checkout@v4
 
       - name: Patch presage/cargo.toml
         if: ${{ inputs.patch_presage_cargo_toml }}
@@ -266,16 +302,15 @@ jobs:
           sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
 
       - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: deep-soft/rust-toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           components: clippy
       
       - name: Setup CI cache
-        uses: Swatinem/rust-cache@v2
+        uses: deep-soft/rust-cache@v2
 
       - name: Run clippy lints
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
+        run: |
+          cargo clippy
