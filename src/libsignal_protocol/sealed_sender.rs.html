@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-e5ca3c64ee2f7cbe/39293fa/rust/protocol/src/sealed_sender.rs`."><title>sealed_sender.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c4dbdcde0fbd8430.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-db279b6232be9c13.css"><link rel="stylesheet" disabled href="../../static.files/dark-cf923f49f397b216.css"><link rel="stylesheet" disabled href="../../static.files/ayu-be46fdc453a55015.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-1b95b7cca98b26e5.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../libsignal_protocol/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-e5ca3c64ee2f7cbe/72f046f/rust/protocol/src/sealed_sender.rs`."><title>sealed_sender.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_protocol" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -1739,32 +1740,103 @@
 <a href="#1739" id="1739">1739</a>
 <a href="#1740" id="1740">1740</a>
 <a href="#1741" id="1741">1741</a>
-</pre><pre class="rust"><code><span class="comment">//
+<a href="#1742" id="1742">1742</a>
+<a href="#1743" id="1743">1743</a>
+<a href="#1744" id="1744">1744</a>
+<a href="#1745" id="1745">1745</a>
+<a href="#1746" id="1746">1746</a>
+<a href="#1747" id="1747">1747</a>
+<a href="#1748" id="1748">1748</a>
+<a href="#1749" id="1749">1749</a>
+<a href="#1750" id="1750">1750</a>
+<a href="#1751" id="1751">1751</a>
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a>
+<a href="#1761" id="1761">1761</a>
+<a href="#1762" id="1762">1762</a>
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a>
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a>
+<a href="#1770" id="1770">1770</a>
+<a href="#1771" id="1771">1771</a>
+<a href="#1772" id="1772">1772</a>
+<a href="#1773" id="1773">1773</a>
+<a href="#1774" id="1774">1774</a>
+<a href="#1775" id="1775">1775</a>
+<a href="#1776" id="1776">1776</a>
+<a href="#1777" id="1777">1777</a>
+<a href="#1778" id="1778">1778</a>
+<a href="#1779" id="1779">1779</a>
+<a href="#1780" id="1780">1780</a>
+<a href="#1781" id="1781">1781</a>
+<a href="#1782" id="1782">1782</a>
+<a href="#1783" id="1783">1783</a>
+<a href="#1784" id="1784">1784</a>
+<a href="#1785" id="1785">1785</a>
+<a href="#1786" id="1786">1786</a>
+<a href="#1787" id="1787">1787</a>
+<a href="#1788" id="1788">1788</a>
+<a href="#1789" id="1789">1789</a>
+<a href="#1790" id="1790">1790</a>
+<a href="#1791" id="1791">1791</a>
+<a href="#1792" id="1792">1792</a>
+<a href="#1793" id="1793">1793</a>
+<a href="#1794" id="1794">1794</a>
+<a href="#1795" id="1795">1795</a>
+<a href="#1796" id="1796">1796</a>
+<a href="#1797" id="1797">1797</a>
+<a href="#1798" id="1798">1798</a>
+<a href="#1799" id="1799">1799</a>
+<a href="#1800" id="1800">1800</a>
+<a href="#1801" id="1801">1801</a>
+<a href="#1802" id="1802">1802</a>
+<a href="#1803" id="1803">1803</a>
+<a href="#1804" id="1804">1804</a>
+<a href="#1805" id="1805">1805</a>
+<a href="#1806" id="1806">1806</a>
+<a href="#1807" id="1807">1807</a>
+<a href="#1808" id="1808">1808</a>
+<a href="#1809" id="1809">1809</a>
+<a href="#1810" id="1810">1810</a>
+<a href="#1811" id="1811">1811</a>
+<a href="#1812" id="1812">1812</a>
+</pre></div><pre class="rust"><code><span class="comment">//
 // Copyright 2020-2022 Signal Messenger, LLC.
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 
 </span><span class="kw">use crate</span>::{
-    message_encrypt, CiphertextMessageType, Context, DeviceId, Direction, IdentityKey,
-    IdentityKeyPair, IdentityKeyStore, KeyPair, PreKeySignalMessage, PreKeyStore, PrivateKey,
-    ProtocolAddress, PublicKey, <span class="prelude-ty">Result</span>, SessionRecord, SessionStore, SignalMessage,
+    message_encrypt, CiphertextMessageType, DeviceId, Direction, IdentityKey, IdentityKeyPair,
+    IdentityKeyStore, KeyPair, KyberPreKeyStore, PreKeySignalMessage, PreKeyStore, PrivateKey,
+    ProtocolAddress, PublicKey, <span class="prelude-ty">Result</span>, ServiceId, SessionRecord, SessionStore, SignalMessage,
     SignalProtocolError, SignedPreKeyStore,
 };
 
 <span class="kw">use crate</span>::{crypto, curve, proto, session_cipher};
 
-<span class="kw">use </span>aes_gcm_siv::aead::{AeadInPlace, NewAead};
-<span class="kw">use </span>aes_gcm_siv::Aes256GcmSiv;
+<span class="kw">use </span>aes_gcm_siv::aead::generic_array::typenum::Unsigned;
+<span class="kw">use </span>aes_gcm_siv::{AeadInPlace, Aes256GcmSiv, KeyInit};
 <span class="kw">use </span>arrayref::array_ref;
 <span class="kw">use </span>curve25519_dalek::scalar::Scalar;
 <span class="kw">use </span>prost::Message;
 <span class="kw">use </span>rand::{CryptoRng, Rng};
 <span class="kw">use </span>subtle::ConstantTimeEq;
-<span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">use </span>proto::sealed_sender::unidentified_sender_message::message::Type <span class="kw">as </span>ProtoMessageType;
 
 <span class="kw">use </span>std::convert::{TryFrom, TryInto};
+<span class="kw">use </span>std::time::SystemTime;
 
 <span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>ServerCertificate {
@@ -1861,7 +1933,7 @@ with this test certificate ID, Bad Things will happen.
     <span class="kw">pub fn </span>validate(<span class="kw-2">&amp;</span><span class="self">self</span>, trust_root: <span class="kw-2">&amp;</span>PublicKey) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
         <span class="kw">if </span>REVOKED_SERVER_CERTIFICATE_KEY_IDS.contains(<span class="kw-2">&amp;</span><span class="self">self</span>.key_id()<span class="question-mark">?</span>) {
             <span class="macro">log::error!</span>(
-                <span class="string">&quot;received server certificate with revoked ID {:x}&quot;</span>,
+                <span class="string">"received server certificate with revoked ID {:x}"</span>,
                 <span class="self">self</span>.key_id()<span class="question-mark">?
             </span>);
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
@@ -1998,7 +2070,7 @@ with this test certificate ID, Bad Things will happen.
 
     <span class="kw">pub fn </span>validate(<span class="kw-2">&amp;</span><span class="self">self</span>, trust_root: <span class="kw-2">&amp;</span>PublicKey, validation_time: u64) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.signer.validate(trust_root)<span class="question-mark">? </span>{
-            <span class="macro">log::error!</span>(<span class="string">&quot;received server certificate not signed by trust root&quot;</span>);
+            <span class="macro">log::error!</span>(<span class="string">"received server certificate not signed by trust root"</span>);
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
         }
 
@@ -2007,13 +2079,13 @@ with this test certificate ID, Bad Things will happen.
             .public_key()<span class="question-mark">?
             </span>.verify_signature(<span class="kw-2">&amp;</span><span class="self">self</span>.certificate, <span class="kw-2">&amp;</span><span class="self">self</span>.signature)<span class="question-mark">?
         </span>{
-            <span class="macro">log::error!</span>(<span class="string">&quot;received sender certificate not signed by server&quot;</span>);
+            <span class="macro">log::error!</span>(<span class="string">"received sender certificate not signed by server"</span>);
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
         }
 
         <span class="kw">if </span>validation_time &gt; <span class="self">self</span>.expiration {
             <span class="macro">log::error!</span>(
-                <span class="string">&quot;received expired sender certificate (expiration: {}, validation_time: {})&quot;</span>,
+                <span class="string">"received expired sender certificate (expiration: {}, validation_time: {})"</span>,
                 <span class="self">self</span>.expiration,
                 validation_time
             );
@@ -2134,6 +2206,7 @@ with this test certificate ID, Bad Things will happen.
         hint.to_u32()
     }
 }
+
 <span class="kw">pub struct </span>UnidentifiedSenderMessageContent {
     serialized: Vec&lt;u8&gt;,
     contents: Vec&lt;u8&gt;,
@@ -2170,7 +2243,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">let </span>serialized = data.to_vec();
 
         <span class="macro">log::info!</span>(
-            <span class="string">&quot;deserialized UnidentifiedSenderMessageContent from {}.{} with type {:?}&quot;</span>,
+            <span class="string">"deserialized UnidentifiedSenderMessageContent from {}.{} with type {:?}"</span>,
             sender.sender_uuid()<span class="question-mark">?</span>,
             sender.sender_device_id()<span class="question-mark">?</span>,
             msg_type,
@@ -2261,17 +2334,18 @@ with this test certificate ID, Bad Things will happen.
 
 <span class="kw">const </span>SEALED_SENDER_V1_VERSION: u8 = <span class="number">1</span>;
 <span class="kw">const </span>SEALED_SENDER_V2_VERSION: u8 = <span class="number">2</span>;
+<span class="kw">const </span>SERVICE_ID_AWARE_VERSION: u8 = <span class="number">3</span>;
 
 <span class="kw">impl </span>UnidentifiedSenderMessage {
     <span class="kw">fn </span>deserialize(data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">if </span>data.is_empty() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
-                <span class="string">&quot;Message was empty&quot;</span>.to_owned(),
+                <span class="string">"Message was empty"</span>.to_owned(),
             ));
         }
         <span class="kw">let </span>version = data[<span class="number">0</span>] &gt;&gt; <span class="number">4</span>;
         <span class="macro">log::debug!</span>(
-            <span class="string">&quot;deserializing UnidentifiedSenderMessage with version {}&quot;</span>,
+            <span class="string">"deserializing UnidentifiedSenderMessage with version {}"</span>,
             version
         );
 
@@ -2334,7 +2408,7 @@ with this test certificate ID, Bad Things will happen.
     <span class="attr">#[cfg(test)]
     </span><span class="kw">use </span>std::fmt;
 
-    <span class="doccomment">/// A symmetric cipher key and a MAC key, along with a &quot;chain key&quot; consumed in
+    <span class="doccomment">/// A symmetric cipher key and a MAC key, along with a "chain key" consumed in
     /// [`StaticKeys::calculate`].
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>EphemeralKeys {
         <span class="kw">pub</span>(<span class="kw">super</span>) chain_key: [u8; <span class="number">32</span>],
@@ -2342,12 +2416,12 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">pub</span>(<span class="kw">super</span>) mac_key: [u8; <span class="number">32</span>],
     }
 
-    <span class="kw">const </span>SALT_PREFIX: <span class="kw-2">&amp;</span>[u8] = <span class="string">b&quot;UnidentifiedDelivery&quot;</span>;
+    <span class="kw">const </span>SALT_PREFIX: <span class="kw-2">&amp;</span>[u8] = <span class="string">b"UnidentifiedDelivery"</span>;
     <span class="kw">const </span>EPHEMERAL_KEYS_KDF_LEN: usize = <span class="number">96</span>;
 
     <span class="kw">impl </span>EphemeralKeys {
         <span class="doccomment">/// Derive a set of symmetric keys from the key agreement between the sender and
-        /// recipient&#39;s identities.
+        /// recipient's identities.
         </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calculate(
             our_keys: <span class="kw-2">&amp;</span>KeyPair,
             their_public: <span class="kw-2">&amp;</span>PublicKey,
@@ -2365,7 +2439,7 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw">let </span><span class="kw-2">mut </span>derived_values = [<span class="number">0</span>; EPHEMERAL_KEYS_KDF_LEN];
             hkdf::Hkdf::&lt;sha2::Sha256&gt;::new(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>ephemeral_salt), <span class="kw-2">&amp;</span>shared_secret)
                 .expand(<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;mut </span>derived_values)
-                .expect(<span class="string">&quot;valid output length&quot;</span>);
+                .expect(<span class="string">"valid output length"</span>);
 
             <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
                 chain_key: <span class="kw-2">*</span><span class="macro">array_ref!</span>[<span class="kw-2">&amp;</span>derived_values, <span class="number">0</span>, <span class="number">32</span>],
@@ -2392,7 +2466,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
             <span class="macro">write!</span>(
                 f,
-                <span class="string">&quot;EphemeralKeys {{ chain_key: {:?}, cipher_key: {:?}, mac_key: {:?} }}&quot;</span>,
+                <span class="string">"EphemeralKeys {{ chain_key: {:?}, cipher_key: {:?}, mac_key: {:?} }}"</span>,
                 <span class="self">self</span>.chain_key, <span class="self">self</span>.cipher_key, <span class="self">self</span>.mac_key
             )
         }
@@ -2406,7 +2480,7 @@ with this test certificate ID, Bad Things will happen.
 
     <span class="kw">impl </span>StaticKeys {
         <span class="doccomment">/// Derive a set of symmetric keys from the agreement between the sender and
-        /// recipient&#39;s identities, as well as [`EphemeralKeys::chain_key`].
+        /// recipient's identities, as well as [`EphemeralKeys::chain_key`].
         </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calculate(
             our_keys: <span class="kw-2">&amp;</span>IdentityKeyPair,
             their_key: <span class="kw-2">&amp;</span>PublicKey,
@@ -2418,11 +2492,11 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw">let </span>shared_secret = our_keys.private_key().calculate_agreement(their_key)<span class="question-mark">?</span>;
             <span class="comment">// 96 bytes are derived, but the first 32 are discarded/unused. This is intended to
             // mirror the way the EphemeralKeys are derived, even though StaticKeys does not end up
-            // requiring a third &quot;chain key&quot;.
+            // requiring a third "chain key".
             </span><span class="kw">let </span><span class="kw-2">mut </span>derived_values = [<span class="number">0</span>; <span class="number">96</span>];
             hkdf::Hkdf::&lt;sha2::Sha256&gt;::new(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>salt), <span class="kw-2">&amp;</span>shared_secret)
                 .expand(<span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;mut </span>derived_values)
-                .expect(<span class="string">&quot;valid output length&quot;</span>);
+                .expect(<span class="string">"valid output length"</span>);
 
             <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
                 cipher_key: <span class="kw-2">*</span><span class="macro">array_ref!</span>[<span class="kw-2">&amp;</span>derived_values, <span class="number">32</span>, <span class="number">32</span>],
@@ -2447,13 +2521,13 @@ with this test certificate ID, Bad Things will happen.
             Direction::Sending,
         )<span class="question-mark">?</span>;
 
-        <span class="comment">// Encrypt the sender&#39;s public key with AES-256 CTR and a MAC.
+        <span class="comment">// Encrypt the sender's public key with AES-256 CTR and a MAC.
         </span><span class="kw">let </span>sender_static_key_ctext = crypto::aes256_ctr_hmacsha256_encrypt(
             <span class="kw-2">&amp;</span>sender_identity.public_key().serialize(),
             <span class="kw-2">&amp;</span>sender_eph_keys.cipher_key,
             <span class="kw-2">&amp;</span>sender_eph_keys.mac_key,
         )
-        .expect(<span class="string">&quot;just generated these keys, they should be correct&quot;</span>);
+        .expect(<span class="string">"just generated these keys, they should be correct"</span>);
 
         <span class="comment">// Generate another cipher and MAC key.
         </span><span class="kw">let </span>sender_static_keys = StaticKeys::calculate(
@@ -2463,15 +2537,15 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw-2">&amp;</span>sender_static_key_ctext,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>sender_message_contents = <span class="string">b&quot;this is a binary message&quot;</span>;
+        <span class="kw">let </span>sender_message_contents = <span class="string">b"this is a binary message"</span>;
         <span class="kw">let </span>sender_message_data = crypto::aes256_ctr_hmacsha256_encrypt(
             sender_message_contents,
             <span class="kw-2">&amp;</span>sender_static_keys.cipher_key,
             <span class="kw-2">&amp;</span>sender_static_keys.mac_key,
         )
-        .expect(<span class="string">&quot;just generated these keys, they should be correct&quot;</span>);
+        .expect(<span class="string">"just generated these keys, they should be correct"</span>);
 
-        <span class="comment">// The message recipient calculates the ephemeral key and the sender&#39;s public key.
+        <span class="comment">// The message recipient calculates the ephemeral key and the sender's public key.
         </span><span class="kw">let </span>recipient_eph_keys = EphemeralKeys::calculate(
             <span class="kw-2">&amp;</span>recipient_identity.into(),
             <span class="kw-2">&amp;</span>ephemeral_public,
@@ -2484,7 +2558,7 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw-2">&amp;</span>recipient_eph_keys.cipher_key,
             <span class="kw-2">&amp;</span>recipient_eph_keys.mac_key,
         )
-        .expect(<span class="string">&quot;should decrypt successfully&quot;</span>);
+        .expect(<span class="string">"should decrypt successfully"</span>);
         <span class="kw">let </span>sender_public_key: PublicKey = PublicKey::try_from(<span class="kw-2">&amp;</span>recipient_message_key_bytes[..])<span class="question-mark">?</span>;
         <span class="macro">assert_eq!</span>(sender_identity.public_key(), <span class="kw-2">&amp;</span>sender_public_key);
 
@@ -2500,7 +2574,7 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw-2">&amp;</span>recipient_static_keys.cipher_key,
             <span class="kw-2">&amp;</span>recipient_static_keys.mac_key,
         )
-        .expect(<span class="string">&quot;should decrypt successfully&quot;</span>);
+        .expect(<span class="string">"should decrypt successfully"</span>);
         <span class="macro">assert_eq!</span>(recipient_message_contents, sender_message_contents);
 
         <span class="prelude-val">Ok</span>(())
@@ -2519,10 +2593,10 @@ with this test certificate ID, Bad Things will happen.
     ptext: <span class="kw-2">&amp;</span>[u8],
     session_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SessionStore,
     identity_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>IdentityKeyStore,
-    ctx: Context,
+    now: SystemTime,
     rng: <span class="kw-2">&amp;mut </span>R,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;&gt; {
-    <span class="kw">let </span>message = message_encrypt(ptext, destination, session_store, identity_store, ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>message = message_encrypt(ptext, destination, session_store, identity_store, now).<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span>usmc = UnidentifiedSenderMessageContent::new(
         message.message_type(),
         sender_cert.clone(),
@@ -2530,7 +2604,7 @@ with this test certificate ID, Bad Things will happen.
         ContentHint::Default,
         <span class="prelude-val">None</span>,
     )<span class="question-mark">?</span>;
-    sealed_sender_encrypt_from_usmc(destination, <span class="kw-2">&amp;</span>usmc, identity_store, ctx, rng).<span class="kw">await
+    sealed_sender_encrypt_from_usmc(destination, <span class="kw-2">&amp;</span>usmc, identity_store, rng).<span class="kw">await
 </span>}
 
 <span class="doccomment">/// This method implements the single-key single-recipient [KEM] described in [this Signal blog
@@ -2544,7 +2618,7 @@ with this test certificate ID, Bad Things will happen.
 ///
 /// # Contrast with Sealed Sender v2
 /// The *single-recipient* KEM scheme implemented by this method partially derives the encryption
-/// key from the recipient&#39;s identity key, which would then require re-encrypting the same message
+/// key from the recipient's identity key, which would then require re-encrypting the same message
 /// multiple times to send to multiple recipients. In contrast,
 /// [Sealed Sender v2](sealed_sender_multi_recipient_encrypt) uses a *multi-recipient* KEM scheme
 /// which avoids this repeated work, but makes a few additional design tradeoffs.
@@ -2553,12 +2627,12 @@ with this test certificate ID, Bad Things will happen.
 /// The KEM scheme implemented by this method is described in [this Signal blog post]. The
 /// high-level steps of this process are listed below:
 /// 1. Generate a random key pair.
-/// 2. Derive a symmetric chain key, cipher key, and MAC key from the recipient&#39;s public key and the
-///    sender&#39;s public/private key pair.
-/// 3. Symmetrically encrypt the sender&#39;s public key using the cipher key and MAC key from (2) with
+/// 2. Derive a symmetric chain key, cipher key, and MAC key from the recipient's public key and the
+///    sender's public/private key pair.
+/// 3. Symmetrically encrypt the sender's public key using the cipher key and MAC key from (2) with
 ///    AES-256 in CTR mode.
-/// 4. Derive a second symmetric cipher key and MAC key from the sender&#39;s private key, the
-///    recipient&#39;s public key, and the chain key from (2).
+/// 4. Derive a second symmetric cipher key and MAC key from the sender's private key, the
+///    recipient's public key, and the chain key from (2).
 /// 5. Symmetrically encrypt the underlying [`UnidentifiedSenderMessageContent`] using the cipher key
 ///    and MAC key from (4) with AES-256 in CTR mode.
 /// 6. Send the ephemeral public key from (1) and the encrypted public key from (3) to the
@@ -2567,11 +2641,11 @@ with this test certificate ID, Bad Things will happen.
 /// ## Pseudocode
 ///```text
 /// e_pub, e_priv                  = X25519.generateEphemeral()
-/// e_chain, e_cipherKey, e_macKey = HKDF(salt=&quot;UnidentifiedDelivery&quot; || recipientIdentityPublic || e_pub, ikm=ECDH(recipientIdentityPublic, e_priv), info=&quot;&quot;)
+/// e_chain, e_cipherKey, e_macKey = HKDF(salt="UnidentifiedDelivery" || recipientIdentityPublic || e_pub, ikm=ECDH(recipientIdentityPublic, e_priv), info="")
 /// e_ciphertext                   = AES_CTR(key=e_cipherKey, input=senderIdentityPublic)
 /// e_mac                          = Hmac256(key=e_macKey, input=e_ciphertext)
 ///
-/// s_cipherKey, s_macKey = HKDF(salt=e_chain || e_ciphertext || e_mac, ikm=ECDH(recipientIdentityPublic, senderIdentityPrivate), info=&quot;&quot;)
+/// s_cipherKey, s_macKey = HKDF(salt=e_chain || e_ciphertext || e_mac, ikm=ECDH(recipientIdentityPublic, senderIdentityPrivate), info="")
 /// s_ciphertext          = AES_CTR(key=s_cipherKey, input=sender_certificate || message_ciphertext)
 /// s_mac                 = Hmac256(key=s_macKey, input=s_ciphertext)
 ///
@@ -2587,12 +2661,11 @@ with this test certificate ID, Bad Things will happen.
     destination: <span class="kw-2">&amp;</span>ProtocolAddress,
     usmc: <span class="kw-2">&amp;</span>UnidentifiedSenderMessageContent,
     identity_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>IdentityKeyStore,
-    ctx: Context,
     rng: <span class="kw-2">&amp;mut </span>R,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;&gt; {
-    <span class="kw">let </span>our_identity = identity_store.get_identity_key_pair(ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>our_identity = identity_store.get_identity_key_pair().<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span>their_identity = identity_store
-        .get_identity(destination, ctx)
+        .get_identity(destination)
         .<span class="kw">await</span><span class="question-mark">?
         </span>.ok_or_else(|| SignalProtocolError::SessionNotFound(destination.clone()))<span class="question-mark">?</span>;
 
@@ -2609,7 +2682,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw-2">&amp;</span>eph_keys.cipher_key,
         <span class="kw-2">&amp;</span>eph_keys.mac_key,
     )
-    .expect(<span class="string">&quot;just generated these keys, they should be correct&quot;</span>);
+    .expect(<span class="string">"just generated these keys, they should be correct"</span>);
 
     <span class="kw">let </span>static_keys = sealed_sender_v1::StaticKeys::calculate(
         <span class="kw-2">&amp;</span>our_identity,
@@ -2623,7 +2696,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw-2">&amp;</span>static_keys.cipher_key,
         <span class="kw-2">&amp;</span>static_keys.mac_key,
     )
-    .expect(<span class="string">&quot;just generated these keys, they should be correct&quot;</span>);
+    .expect(<span class="string">"just generated these keys, they should be correct"</span>);
 
     <span class="kw">let </span>version = SEALED_SENDER_V1_VERSION;
     <span class="kw">let </span><span class="kw-2">mut </span>serialized = <span class="macro">vec!</span>[version | (version &lt;&lt; <span class="number">4</span>)];
@@ -2633,7 +2706,7 @@ with this test certificate ID, Bad Things will happen.
         encrypted_message: <span class="prelude-val">Some</span>(message_data),
     };
     pb.encode(<span class="kw-2">&amp;mut </span>serialized)
-        .expect(<span class="string">&quot;can always append to Vec&quot;</span>);
+        .expect(<span class="string">"can always append to Vec"</span>);
 
     <span class="prelude-val">Ok</span>(serialized)
 }
@@ -2642,34 +2715,61 @@ with this test certificate ID, Bad Things will happen.
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="comment">// Static byte strings used as part of a MAC in HKDF.
-    </span><span class="kw">const </span>LABEL_R: <span class="kw-2">&amp;</span>[u8] = <span class="string">b&quot;Sealed Sender v2: r&quot;</span>;
-    <span class="kw">const </span>LABEL_K: <span class="kw-2">&amp;</span>[u8] = <span class="string">b&quot;Sealed Sender v2: K&quot;</span>;
-    <span class="kw">const </span>LABEL_DH: <span class="kw-2">&amp;</span>[u8] = <span class="string">b&quot;Sealed Sender v2: DH&quot;</span>;
-    <span class="kw">const </span>LABEL_DH_S: <span class="kw-2">&amp;</span>[u8] = <span class="string">b&quot;Sealed Sender v2: DH-sender&quot;</span>;
+    </span><span class="kw">const </span>LABEL_R: <span class="kw-2">&amp;</span>[u8] = <span class="string">b"Sealed Sender v2: r (2023-08)"</span>;
+    <span class="kw">const </span>LABEL_R_LEGACY: <span class="kw-2">&amp;</span>[u8] = <span class="string">b"Sealed Sender v2: r"</span>;
+    <span class="kw">const </span>LABEL_K: <span class="kw-2">&amp;</span>[u8] = <span class="string">b"Sealed Sender v2: K"</span>;
+    <span class="kw">const </span>LABEL_DH: <span class="kw-2">&amp;</span>[u8] = <span class="string">b"Sealed Sender v2: DH"</span>;
+    <span class="kw">const </span>LABEL_DH_S: <span class="kw-2">&amp;</span>[u8] = <span class="string">b"Sealed Sender v2: DH-sender"</span>;
 
     <span class="kw">pub const </span>MESSAGE_KEY_LEN: usize = <span class="number">32</span>;
+    <span class="kw">pub const </span>CIPHER_KEY_LEN: usize =
+        &lt;Aes256GcmSiv <span class="kw">as </span>aes_gcm_siv::aead::KeySizeUser&gt;::KeySize::USIZE;
     <span class="kw">pub const </span>AUTH_TAG_LEN: usize = <span class="number">16</span>;
+
+    <span class="comment">// Change this to false after all clients have receive support.
+    </span><span class="kw">pub const </span>USE_LEGACY_EPHEMERAL_KEY_DERIVATION_FOR_ENCRYPT: bool = <span class="bool-val">true</span>;
 
     <span class="doccomment">/// An asymmetric and a symmetric cipher key.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>DerivedKeys {
-        <span class="doccomment">/// Asymmetric key pair.
-        </span><span class="kw">pub</span>(<span class="kw">super</span>) e: KeyPair,
-        <span class="doccomment">/// Symmetric key used to instantiate [`Aes256GcmSiv::new_from_slice`].
-        </span><span class="kw">pub</span>(<span class="kw">super</span>) k: [u8; MESSAGE_KEY_LEN],
+        kdf: hkdf::Hkdf&lt;sha2::Sha256&gt;,
     }
 
     <span class="kw">impl </span>DerivedKeys {
-        <span class="doccomment">/// Derive a set of ephemeral keys from a slice of random bytes `m`.
-        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>calculate(m: <span class="kw-2">&amp;</span>[u8]) -&gt; DerivedKeys {
-            <span class="kw">let </span>kdf = hkdf::Hkdf::&lt;sha2::Sha256&gt;::new(<span class="prelude-val">None</span>, m);
+        <span class="doccomment">/// Initialize from a slice of random bytes `m`.
+        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(m: <span class="kw-2">&amp;</span>[u8]) -&gt; DerivedKeys {
+            <span class="self">Self </span>{
+                kdf: hkdf::Hkdf::&lt;sha2::Sha256&gt;::new(<span class="prelude-val">None</span>, m),
+            }
+        }
+
+        <span class="doccomment">/// Derive the ephemeral asymmetric keys.
+        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>derive_e(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; KeyPair {
+            <span class="kw">let </span><span class="kw-2">mut </span>r = [<span class="number">0</span>; <span class="number">32</span>];
+            <span class="self">self</span>.kdf
+                .expand(LABEL_R, <span class="kw-2">&amp;mut </span>r)
+                .expect(<span class="string">"valid output length"</span>);
+            <span class="kw">let </span>e = PrivateKey::try_from(<span class="kw-2">&amp;</span>r[..]).expect(<span class="string">"valid PrivateKey"</span>);
+            KeyPair::try_from(e).expect(<span class="string">"can derive public key"</span>)
+        }
+
+        <span class="doccomment">/// Derive the ephemeral asymmetric keys using the legacy implementation.
+        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>derive_e_legacy(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; KeyPair {
             <span class="kw">let </span><span class="kw-2">mut </span>r = [<span class="number">0</span>; <span class="number">64</span>];
-            kdf.expand(LABEL_R, <span class="kw-2">&amp;mut </span>r).expect(<span class="string">&quot;valid output length&quot;</span>);
-            <span class="kw">let </span><span class="kw-2">mut </span>k = [<span class="number">0</span>; MESSAGE_KEY_LEN];
-            kdf.expand(LABEL_K, <span class="kw-2">&amp;mut </span>k).expect(<span class="string">&quot;valid output length&quot;</span>);
+            <span class="self">self</span>.kdf
+                .expand(LABEL_R_LEGACY, <span class="kw-2">&amp;mut </span>r)
+                .expect(<span class="string">"valid output length"</span>);
             <span class="kw">let </span>e_raw = Scalar::from_bytes_mod_order_wide(<span class="kw-2">&amp;</span>r);
-            <span class="kw">let </span>e = PrivateKey::try_from(<span class="kw-2">&amp;</span>e_raw.as_bytes()[..]).expect(<span class="string">&quot;valid PrivateKey&quot;</span>);
-            <span class="kw">let </span>e = KeyPair::try_from(e).expect(<span class="string">&quot;can derive public key&quot;</span>);
-            DerivedKeys { e, k }
+            <span class="kw">let </span>e = PrivateKey::try_from(<span class="kw-2">&amp;</span>e_raw.as_bytes()[..]).expect(<span class="string">"valid PrivateKey"</span>);
+            KeyPair::try_from(e).expect(<span class="string">"can derive public key"</span>)
+        }
+
+        <span class="doccomment">/// Derive the symmetric cipher key.
+        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>derive_k(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; [u8; CIPHER_KEY_LEN] {
+            <span class="kw">let </span><span class="kw-2">mut </span>k = [<span class="number">0</span>; CIPHER_KEY_LEN];
+            <span class="self">self</span>.kdf
+                .expand(LABEL_K, <span class="kw-2">&amp;mut </span>k)
+                .expect(<span class="string">"valid output length"</span>);
+            k
         }
     }
 
@@ -2703,7 +2803,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">let </span><span class="kw-2">mut </span>result = [<span class="number">0</span>; MESSAGE_KEY_LEN];
         hkdf::Hkdf::&lt;sha2::Sha256&gt;::new(<span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>agreement_key_input)
             .expand(LABEL_DH, <span class="kw-2">&amp;mut </span>result)
-            .expect(<span class="string">&quot;valid output length&quot;</span>);
+            .expect(<span class="string">"valid output length"</span>);
         result
             .iter_mut()
             .zip(input)
@@ -2746,7 +2846,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">let </span><span class="kw-2">mut </span>result = [<span class="number">0</span>; AUTH_TAG_LEN];
         hkdf::Hkdf::&lt;sha2::Sha256&gt;::new(<span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>agreement_key_input)
             .expand(LABEL_DH_S, <span class="kw-2">&amp;mut </span>result)
-            .expect(<span class="string">&quot;valid output length&quot;</span>);
+            .expect(<span class="string">"valid output length"</span>);
         <span class="prelude-val">Ok</span>(result)
     }
 
@@ -2759,29 +2859,25 @@ with this test certificate ID, Bad Things will happen.
         <span class="comment">// Generate random bytes used for our multi-recipient encoding scheme.
         </span><span class="kw">let </span>m: [u8; MESSAGE_KEY_LEN] = rand::thread_rng().gen();
         <span class="comment">// Derive an ephemeral key pair from those random bytes.
-        </span><span class="kw">let </span>ephemeral_keys = DerivedKeys::calculate(<span class="kw-2">&amp;</span>m);
-        <span class="kw">let </span>ephemeral_public_key = ephemeral_keys.e.public_key;
+        </span><span class="kw">let </span>ephemeral_keys = DerivedKeys::new(<span class="kw-2">&amp;</span>m);
+        <span class="kw">let </span>e = ephemeral_keys.derive_e();
 
         <span class="comment">// Encrypt the ephemeral key pair.
-        </span><span class="kw">let </span>sender_c_0: [u8; MESSAGE_KEY_LEN] = apply_agreement_xor(
-            <span class="kw-2">&amp;</span>ephemeral_keys.e,
-            recipient_identity.public_key(),
-            Direction::Sending,
-            <span class="kw-2">&amp;</span>m,
-        )<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>sender_c_0: [u8; MESSAGE_KEY_LEN] =
+            apply_agreement_xor(<span class="kw-2">&amp;</span>e, recipient_identity.public_key(), Direction::Sending, <span class="kw-2">&amp;</span>m)<span class="question-mark">?</span>;
         <span class="comment">// Compute an authentication tag for the encrypted key pair.
         </span><span class="kw">let </span>sender_at_0 = compute_authentication_tag(
             <span class="kw-2">&amp;</span>sender_identity,
             recipient_identity.identity_key(),
             Direction::Sending,
-            <span class="kw-2">&amp;</span>ephemeral_public_key,
+            <span class="kw-2">&amp;</span>e.public_key,
             <span class="kw-2">&amp;</span>sender_c_0,
         )<span class="question-mark">?</span>;
 
         <span class="comment">// The message recipient calculates the original random bytes and authenticates the result.
         </span><span class="kw">let </span>recv_m = apply_agreement_xor(
             <span class="kw-2">&amp;</span>recipient_identity.into(),
-            <span class="kw-2">&amp;</span>ephemeral_public_key,
+            <span class="kw-2">&amp;</span>e.public_key,
             Direction::Receiving,
             <span class="kw-2">&amp;</span>sender_c_0,
         )<span class="question-mark">?</span>;
@@ -2791,7 +2887,7 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw-2">&amp;</span>recipient_identity,
             sender_identity.identity_key(),
             Direction::Receiving,
-            <span class="kw-2">&amp;</span>ephemeral_public_key,
+            <span class="kw-2">&amp;</span>e.public_key,
             <span class="kw-2">&amp;</span>sender_c_0,
         )<span class="question-mark">?</span>;
         <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>recv_at_0, <span class="kw-2">&amp;</span>sender_at_0);
@@ -2800,15 +2896,15 @@ with this test certificate ID, Bad Things will happen.
     }
 }
 
-<span class="doccomment">/// This method implements a single-key multi-recipient [KEM] as defined in Manuel Barbosa&#39;s
-/// [&quot;Randomness Reuse: Extensions and Improvements&quot;], a.k.a. Sealed Sender v2.
+<span class="doccomment">/// This method implements a single-key multi-recipient [KEM] as defined in Manuel Barbosa's
+/// ["Randomness Reuse: Extensions and Improvements"], a.k.a. Sealed Sender v2.
 ///
 /// [KEM]: https://en.wikipedia.org/wiki/Key_encapsulation
-/// [&quot;Randomness Reuse: Extensions and Improvements&quot;]: https://haslab.uminho.pt/mbb/files/reuse.pdf
+/// ["Randomness Reuse: Extensions and Improvements"]: https://haslab.uminho.pt/mbb/files/reuse.pdf
 ///
 /// # Contrast with Sealed Sender v1
-/// The KEM scheme implemented by this method uses the &quot;Generic Construction&quot; in `4.1` of [Barbosa&#39;s
-/// paper][&quot;Randomness Reuse: Extensions and Improvements&quot;], instantiated with [ElGamal
+/// The KEM scheme implemented by this method uses the "Generic Construction" in `4.1` of [Barbosa's
+/// paper]["Randomness Reuse: Extensions and Improvements"], instantiated with [ElGamal
 /// encryption]. This technique enables reusing a single sequence of random bytes across multiple
 /// messages with the same content, which reduces computation time for clients sending the same
 /// message to multiple recipients (without compromising the message security).
@@ -2824,7 +2920,7 @@ with this test certificate ID, Bad Things will happen.
 ///    still be more compact than sending the same message N times, but on the receiver side the
 ///    message is slightly larger.
 /// 3. unlike other message types sent over the wire, the encoded message returned by this method
-///    does not use protobuf, in order to avoid inefficiencies produced by protobuf&#39;s packing (see
+///    does not use protobuf, in order to avoid inefficiencies produced by protobuf's packing (see
 ///    **[Wire Format]**).
 ///
 /// [ElGamal encryption]: https://en.wikipedia.org/wiki/ElGamal_encryption
@@ -2836,9 +2932,9 @@ with this test certificate ID, Bad Things will happen.
 /// 1. Generate a series of random bytes.
 /// 2. Derive an ephemeral key pair from (1).
 /// 3. *Once per recipient:* Encrypt (1) using a shared secret derived from the private ephemeral
-///    key (2) and the recipient&#39;s public identity key.
+///    key (2) and the recipient's public identity key.
 /// 4. *Once per recipient:* Add an authentication tag for (3) using a secret derived from the
-///    sender&#39;s private identity key and the recipient&#39;s public identity key.
+///    sender's private identity key and the recipient's public identity key.
 /// 5. Generate a symmetric key from (1) and use it to symmetrically encrypt the underlying
 ///    [`UnidentifiedSenderMessageContent`] via [AEAD encryption]. *This step is only performed once
 ///    per message, regardless of the number of recipients.*
@@ -2851,7 +2947,7 @@ with this test certificate ID, Bad Things will happen.
 ///```text
 /// ENCRYPT(message, R_i):
 ///     M = Random(32)
-///     r = KDF(label_r, M, len=64)
+///     r = KDF(label_r, M, len=32)
 ///     K = KDF(label_K, M, len=32)
 ///     E = DeriveKeyPair(r)
 ///     for i in num_recipients:
@@ -2862,14 +2958,14 @@ with this test certificate ID, Bad Things will happen.
 ///
 /// DECRYPT(E.public, C, AT, ciphertext):
 ///     M = KDF(label_DH, DH(E, R) || E.public || R.public, len=32) xor C
-///     r = KDF(label_r, M, len=64)
+///     r = KDF(label_r, M, len=32)
 ///     K = KDF(label_K, M, len=32)
-///     E&#39; = DeriveKeyPair(r)
-///     if E.public != E&#39;.public:
+///     E' = DeriveKeyPair(r)
+///     if E.public != E'.public:
 ///         return DecryptionError
 ///     message = AEAD_Decrypt(K, ciphertext) // includes S.public
-///     AT&#39; = KDF(label_DH_s, DH(S, R) || E.public || C || S.public || R.public, len=16)
-///     if AT != AT&#39;:
+///     AT' = KDF(label_DH_s, DH(S, R) || E.public || C || S.public || R.public, len=16)
+///     if AT != AT':
 ///         return DecryptionError
 ///     return message
 ///```
@@ -2881,7 +2977,7 @@ with this test certificate ID, Bad Things will happen.
 ///
 /// For testing purposes, [`sealed_sender_multi_recipient_fan_out`] can be used to convert such
 /// a bulk message produced by Sealed Sender v2 into a sequence of [received messages][receiving];
-/// however, in doing so it will drop all of the metadata necessary to identify the message&#39;s
+/// however, in doing so it will drop all of the metadata necessary to identify the message's
 /// intended recipients.
 ///
 /// # Wire Format
@@ -2927,7 +3023,7 @@ with this test certificate ID, Bad Things will happen.
 ///
 /// ```text
 /// PerRecipientData {
-///     uuid: [u8; 16],
+///     service_id_fixed_width_binary: [u8; 17],
 ///     device_id: varint,
 ///     registration_id: u16,
 ///     c: [u8; 32],
@@ -2943,78 +3039,118 @@ with this test certificate ID, Bad Things will happen.
 /// }
 /// ```
 ///
-/// The varint encoding used is the same as [protobuf&#39;s][varint]. Values are unsigned. UUIDs are
-/// encoded per [RFC 4122], with the first eight bytes considered &quot;most significant&quot;. [^1]
+/// The varint encoding used is the same as [protobuf's][varint]. Values are unsigned.
+/// Fixed-width-binary encoding is used for the [ServiceId] values.
 /// Fixed-width integers are unaligned and in network byte order (big-endian).
 ///
 /// [varint]: https://developers.google.com/protocol-buffers/docs/encoding#varints
-/// [RFC 4122]: https://tools.ietf.org/html/rfc4122#section-4.1.2
-///
-/// [^1]: RFC 4122 guarantees the encoding order of the fields in a
-/// UUID, but the representation of each field may vary based on the UUID&#39;s
-/// &quot;variant&quot;. For Sealed Sender&#39;s purposes, this is not important except for
-/// debug-printing, since UUIDs are always treated as opaque identifiers matched
-/// byte-for-byte.
 </span><span class="kw">pub async fn </span>sealed_sender_multi_recipient_encrypt&lt;R: Rng + CryptoRng&gt;(
     destinations: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>ProtocolAddress],
     destination_sessions: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>SessionRecord],
     usmc: <span class="kw-2">&amp;</span>UnidentifiedSenderMessageContent,
     identity_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>IdentityKeyStore,
-    ctx: Context,
     rng: <span class="kw-2">&amp;mut </span>R,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;&gt; {
+    sealed_sender_multi_recipient_encrypt_impl(
+        destinations,
+        destination_sessions,
+        usmc,
+        identity_store,
+        rng,
+        sealed_sender_v2::USE_LEGACY_EPHEMERAL_KEY_DERIVATION_FOR_ENCRYPT,
+    )
+    .<span class="kw">await
+</span>}
+
+<span class="doccomment">/// For testing only.
+</span><span class="kw">pub async fn </span>sealed_sender_multi_recipient_encrypt_using_new_ephemeral_key_derivation&lt;
+    R: Rng + CryptoRng,
+&gt;(
+    destinations: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>ProtocolAddress],
+    destination_sessions: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>SessionRecord],
+    usmc: <span class="kw-2">&amp;</span>UnidentifiedSenderMessageContent,
+    identity_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>IdentityKeyStore,
+    rng: <span class="kw-2">&amp;mut </span>R,
+) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;&gt; {
+    <span class="comment">// When this is flipped, we should use this function to test the legacy encryption instead.
+    </span><span class="macro">static_assertions::const_assert!</span>(
+        sealed_sender_v2::USE_LEGACY_EPHEMERAL_KEY_DERIVATION_FOR_ENCRYPT,
+    );
+    sealed_sender_multi_recipient_encrypt_impl(
+        destinations,
+        destination_sessions,
+        usmc,
+        identity_store,
+        rng,
+        <span class="bool-val">false</span>,
+    )
+    .<span class="kw">await
+</span>}
+
+<span class="kw">async fn </span>sealed_sender_multi_recipient_encrypt_impl&lt;R: Rng + CryptoRng&gt;(
+    destinations: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>ProtocolAddress],
+    destination_sessions: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>SessionRecord],
+    usmc: <span class="kw-2">&amp;</span>UnidentifiedSenderMessageContent,
+    identity_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>IdentityKeyStore,
+    rng: <span class="kw-2">&amp;mut </span>R,
+    should_use_legacy_ephemeral_key_derivation: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;&gt; {
     <span class="kw">if </span>destinations.len() != destination_sessions.len() {
         <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidArgument(
-            <span class="string">&quot;must have the same number of destination sessions as addresses&quot;</span>.to_string(),
+            <span class="string">"must have the same number of destination sessions as addresses"</span>.to_string(),
         ));
     }
 
     <span class="kw">let </span>m: [u8; sealed_sender_v2::MESSAGE_KEY_LEN] = rng.gen();
-    <span class="kw">let </span>keys = sealed_sender_v2::DerivedKeys::calculate(<span class="kw-2">&amp;</span>m);
-    <span class="kw">let </span>e_pub = <span class="kw-2">&amp;</span>keys.e.public_key;
+    <span class="kw">let </span>keys = sealed_sender_v2::DerivedKeys::new(<span class="kw-2">&amp;</span>m);
+    <span class="kw">let </span>e = <span class="kw">if </span>should_use_legacy_ephemeral_key_derivation {
+        keys.derive_e_legacy()
+    } <span class="kw">else </span>{
+        keys.derive_e()
+    };
+    <span class="kw">let </span>e_pub = <span class="kw-2">&amp;</span>e.public_key;
 
     <span class="kw">let </span>ciphertext = {
         <span class="kw">let </span><span class="kw-2">mut </span>ciphertext = usmc.serialized()<span class="question-mark">?</span>.to_vec();
-        <span class="kw">let </span>symmetric_authentication_tag = Aes256GcmSiv::new_from_slice(<span class="kw-2">&amp;</span>keys.k)
-            .and_then(|aes_gcm_siv| {
-                aes_gcm_siv.encrypt_in_place_detached(
-                    <span class="comment">// There&#39;s no nonce because the key is already one-use.
-                    </span><span class="kw-2">&amp;</span>aes_gcm_siv::Nonce::default(),
-                    <span class="comment">// And there&#39;s no associated data.
-                    </span><span class="kw-2">&amp;</span>[],
-                    <span class="kw-2">&amp;mut </span>ciphertext,
-                )
-            })
-            .expect(<span class="string">&quot;AES-GCM-SIV encryption should not fail with a just-computed key&quot;</span>);
+        <span class="kw">let </span>symmetric_authentication_tag = Aes256GcmSiv::new(<span class="kw-2">&amp;</span>keys.derive_k().into())
+            .encrypt_in_place_detached(
+                <span class="comment">// There's no nonce because the key is already one-use.
+                </span><span class="kw-2">&amp;</span>aes_gcm_siv::Nonce::default(),
+                <span class="comment">// And there's no associated data.
+                </span><span class="kw-2">&amp;</span>[],
+                <span class="kw-2">&amp;mut </span>ciphertext,
+            )
+            .expect(<span class="string">"AES-GCM-SIV encryption should not fail with a just-computed key"</span>);
         <span class="comment">// AES-GCM-SIV expects the authentication tag to be at the end of the ciphertext
         // when decrypting.
         </span>ciphertext.extend_from_slice(<span class="kw-2">&amp;</span>symmetric_authentication_tag);
         ciphertext
     };
 
-    <span class="comment">// Uses a flat representation: count || UUID_i || deviceId_i || registrationId_i || C_i || AT_i || ... || E.pub || ciphertext
-    </span><span class="kw">let </span>version = SEALED_SENDER_V2_VERSION;
-    <span class="kw">let </span><span class="kw-2">mut </span>serialized: Vec&lt;u8&gt; = <span class="macro">vec!</span>[(version | (version &lt;&lt; <span class="number">4</span>))];
+    <span class="comment">// Uses a flat representation: count || ServiceId_i || deviceId_i || registrationId_i || C_i || AT_i || ... || E.pub || ciphertext
+    </span><span class="kw">let </span><span class="kw-2">mut </span>serialized: Vec&lt;u8&gt; =
+        <span class="macro">vec!</span>[(SERVICE_ID_AWARE_VERSION | (SEALED_SENDER_V2_VERSION &lt;&lt; <span class="number">4</span>))];
 
     prost::encode_length_delimiter(destinations.len(), <span class="kw-2">&amp;mut </span>serialized)
-        .expect(<span class="string">&quot;cannot fail encoding to Vec&quot;</span>);
+        .expect(<span class="string">"cannot fail encoding to Vec"</span>);
 
-    <span class="kw">let </span>our_identity = identity_store.get_identity_key_pair(ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>our_identity = identity_store.get_identity_key_pair().<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span><span class="kw-2">mut </span>previous_their_identity = <span class="prelude-val">None</span>;
     <span class="kw">for </span>(<span class="kw-2">&amp;</span>destination, session) <span class="kw">in </span>destinations.iter().zip(destination_sessions) {
-        <span class="kw">let </span>their_uuid = Uuid::parse_str(destination.name()).map_err(|<span class="kw">_</span>| {
-            SignalProtocolError::InvalidArgument(<span class="macro">format!</span>(
-                <span class="string">&quot;multi-recipient sealed sender requires UUID recipients (not {})&quot;</span>,
-                destination.name()
-            ))
-        })<span class="question-mark">?</span>;
+        <span class="kw">let </span>their_service_id = ServiceId::parse_from_service_id_string(destination.name())
+            .ok_or_else(|| {
+                SignalProtocolError::InvalidArgument(<span class="macro">format!</span>(
+                    <span class="string">"multi-recipient sealed sender requires recipients' ServiceId (not {})"</span>,
+                    destination.name()
+                ))
+            })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>their_identity = identity_store
-            .get_identity(destination, ctx)
+            .get_identity(destination)
             .<span class="kw">await</span><span class="question-mark">?
             </span>.ok_or_else(|| {
-                <span class="macro">log::error!</span>(<span class="string">&quot;missing identity key for {}&quot;</span>, destination);
-                <span class="comment">// Returned as a SessionNotFound error because (a) we don&#39;t have an identity error
+                <span class="macro">log::error!</span>(<span class="string">"missing identity key for {}"</span>, destination);
+                <span class="comment">// Returned as a SessionNotFound error because (a) we don't have an identity error
                 // that includes the address, and (b) re-establishing the session should re-fetch
                 // the identity.
                 </span>SignalProtocolError::SessionNotFound(destination.clone())
@@ -3022,11 +3158,11 @@ with this test certificate ID, Bad Things will happen.
 
         <span class="kw">let </span>their_registration_id = session.remote_registration_id().map_err(|<span class="kw">_</span>| {
             SignalProtocolError::InvalidState(
-                <span class="string">&quot;sealed_sender_multi_recipient_encrypt&quot;</span>,
+                <span class="string">"sealed_sender_multi_recipient_encrypt"</span>,
                 <span class="macro">format!</span>(
                     <span class="macro">concat!</span>(
-                        <span class="string">&quot;cannot get registration ID from session with {} &quot;</span>,
-                        <span class="string">&quot;(maybe it was recently archived)&quot;
+                        <span class="string">"cannot get registration ID from session with {} "</span>,
+                        <span class="string">"(maybe it was recently archived)"
                     </span>),
                     destination
                 ),
@@ -3041,14 +3177,14 @@ with this test certificate ID, Bad Things will happen.
             ));
         }
         <span class="kw">let </span>their_registration_id =
-            u16::try_from(their_registration_id).expect(<span class="string">&quot;just checked range&quot;</span>);
+            u16::try_from(their_registration_id).expect(<span class="string">"just checked range"</span>);
 
         <span class="kw">let </span>end_of_previous_recipient_data = serialized.len();
 
-        serialized.extend_from_slice(their_uuid.as_bytes());
+        serialized.extend_from_slice(<span class="kw-2">&amp;</span>their_service_id.service_id_fixed_width_binary());
         <span class="kw">let </span>device_id: u32 = destination.device_id().into();
         prost::encode_length_delimiter(device_id <span class="kw">as </span>usize, <span class="kw-2">&amp;mut </span>serialized)
-            .expect(<span class="string">&quot;cannot fail encoding to Vec&quot;</span>);
+            .expect(<span class="string">"cannot fail encoding to Vec"</span>);
         serialized.extend_from_slice(<span class="kw-2">&amp;</span>their_registration_id.to_be_bytes());
 
         <span class="kw">if </span><span class="prelude-val">Some</span>(their_identity) == previous_their_identity {
@@ -3063,7 +3199,7 @@ with this test certificate ID, Bad Things will happen.
             )
         } <span class="kw">else </span>{
             <span class="kw">let </span>c_i = sealed_sender_v2::apply_agreement_xor(
-                <span class="kw-2">&amp;</span>keys.e,
+                <span class="kw-2">&amp;</span>e,
                 their_identity.public_key(),
                 Direction::Sending,
                 <span class="kw-2">&amp;</span>m,
@@ -3093,7 +3229,7 @@ with this test certificate ID, Bad Things will happen.
 /// individual encrypted [`UnidentifiedSenderMessageContent`]s. **Note: this method is only used in
 /// testing.**
 ///
-/// This method strips recipients&#39; metadata and splits a bulk v2 sealed-sender message into byte
+/// This method strips recipients' metadata and splits a bulk v2 sealed-sender message into byte
 /// strings which can be processed by [`sealed_sender_decrypt_to_usmc`]. For the Signal app, this
 /// process of splitting out a v2 sealed-sender message into individual messages and using the
 /// metadata to correctly route the result to recipients is performed by the Signal server (see
@@ -3106,7 +3242,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::UnknownSealedSenderVersion(version));
     }
 
-    <span class="kw">fn </span>advance&lt;<span class="lifetime">&#39;a</span>&gt;(buf: <span class="kw-2">&amp;mut &amp;</span><span class="lifetime">&#39;a </span>[u8], n: usize) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt; {
+    <span class="kw">fn </span>advance&lt;<span class="lifetime">'a</span>&gt;(buf: <span class="kw-2">&amp;mut &amp;</span><span class="lifetime">'a </span>[u8], n: usize) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>[u8]&gt; {
         <span class="kw">if </span>n &gt; buf.len() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidProtobufEncoding);
         }
@@ -3118,7 +3254,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">let </span>result: usize = prost::decode_length_delimiter(<span class="kw-2">*</span>buf)
             .map_err(|<span class="kw">_</span>| SignalProtocolError::InvalidProtobufEncoding)<span class="question-mark">?</span>;
         <span class="kw">let _ </span>= advance(buf, prost::length_delimiter_len(result))
-            .expect(<span class="string">&quot;just decoded that many bytes&quot;</span>);
+            .expect(<span class="string">"just decoded that many bytes"</span>);
         result
             .try_into()
             .map_err(|<span class="kw">_</span>| SignalProtocolError::InvalidProtobufEncoding)
@@ -3129,8 +3265,8 @@ with this test certificate ID, Bad Things will happen.
 
     <span class="kw">let </span><span class="kw-2">mut </span>messages: Vec&lt;Vec&lt;u8&gt;&gt; = Vec::new();
     <span class="kw">for _ in </span><span class="number">0</span>..recipient_count {
-        <span class="comment">// Skip UUID.
-        </span><span class="kw">let _ </span>= advance(<span class="kw-2">&amp;mut </span>remaining, <span class="number">16</span>)<span class="question-mark">?</span>;
+        <span class="comment">// Skip ServiceId.
+        </span><span class="kw">let _ </span>= advance(<span class="kw-2">&amp;mut </span>remaining, <span class="number">17</span>)<span class="question-mark">?</span>;
         <span class="comment">// Skip device ID.
         </span><span class="kw">let _ </span>= decode_varint(<span class="kw-2">&amp;mut </span>remaining)<span class="question-mark">?</span>;
         <span class="comment">// Skip registration ID.
@@ -3156,14 +3292,13 @@ with this test certificate ID, Bad Things will happen.
 
 <span class="doccomment">/// Decrypt the payload of a sealed-sender message in either the v1 or v2 format.
 ///
-/// [`sealed_sender_decrypt`] consumes the output of this method to validate the sender&#39;s identity
+/// [`sealed_sender_decrypt`] consumes the output of this method to validate the sender's identity
 /// before decrypting the underlying message.
 </span><span class="kw">pub async fn </span>sealed_sender_decrypt_to_usmc(
     ciphertext: <span class="kw-2">&amp;</span>[u8],
     identity_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>IdentityKeyStore,
-    ctx: Context,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;UnidentifiedSenderMessageContent&gt; {
-    <span class="kw">let </span>our_identity = identity_store.get_identity_key_pair(ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>our_identity = identity_store.get_identity_key_pair().<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="kw">match </span>UnidentifiedSenderMessage::deserialize(ciphertext)<span class="question-mark">? </span>{
         UnidentifiedSenderMessage::V1 {
@@ -3184,12 +3319,12 @@ with this test certificate ID, Bad Things will happen.
             ) {
                 <span class="prelude-val">Ok</span>(plaintext) =&gt; plaintext,
                 <span class="prelude-val">Err</span>(crypto::DecryptionError::BadKeyOrIv) =&gt; {
-                    <span class="macro">unreachable!</span>(<span class="string">&quot;just derived these keys; they should be valid&quot;</span>);
+                    <span class="macro">unreachable!</span>(<span class="string">"just derived these keys; they should be valid"</span>);
                 }
                 <span class="prelude-val">Err</span>(crypto::DecryptionError::BadCiphertext(msg)) =&gt; {
-                    <span class="macro">log::error!</span>(<span class="string">&quot;failed to decrypt sealed sender v1 message key: {}&quot;</span>, msg);
+                    <span class="macro">log::error!</span>(<span class="string">"failed to decrypt sealed sender v1 message key: {}"</span>, msg);
                     <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
-                        <span class="string">&quot;failed to decrypt sealed sender v1 message key&quot;</span>.to_owned(),
+                        <span class="string">"failed to decrypt sealed sender v1 message key"</span>.to_owned(),
                     ));
                 }
             };
@@ -3210,15 +3345,15 @@ with this test certificate ID, Bad Things will happen.
             ) {
                 <span class="prelude-val">Ok</span>(plaintext) =&gt; plaintext,
                 <span class="prelude-val">Err</span>(crypto::DecryptionError::BadKeyOrIv) =&gt; {
-                    <span class="macro">unreachable!</span>(<span class="string">&quot;just derived these keys; they should be valid&quot;</span>);
+                    <span class="macro">unreachable!</span>(<span class="string">"just derived these keys; they should be valid"</span>);
                 }
                 <span class="prelude-val">Err</span>(crypto::DecryptionError::BadCiphertext(msg)) =&gt; {
                     <span class="macro">log::error!</span>(
-                        <span class="string">&quot;failed to decrypt sealed sender v1 message contents: {}&quot;</span>,
+                        <span class="string">"failed to decrypt sealed sender v1 message contents: {}"</span>,
                         msg
                     );
                     <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
-                        <span class="string">&quot;failed to decrypt sealed sender v1 message contents&quot;</span>.to_owned(),
+                        <span class="string">"failed to decrypt sealed sender v1 message contents"</span>.to_owned(),
                     ));
                 }
             };
@@ -3227,7 +3362,7 @@ with this test certificate ID, Bad Things will happen.
 
             <span class="kw">if </span>!bool::from(message_key_bytes.ct_eq(<span class="kw-2">&amp;</span>usmc.sender()<span class="question-mark">?</span>.key()<span class="question-mark">?</span>.serialize())) {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
-                    <span class="string">&quot;sender certificate key does not match message key&quot;</span>.to_string(),
+                    <span class="string">"sender certificate key does not match message key"</span>.to_string(),
                 ));
             }
 
@@ -3242,7 +3377,7 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw">let </span>encrypted_message_key: [u8; sealed_sender_v2::MESSAGE_KEY_LEN] =
                 encrypted_message_key.as_ref().try_into().map_err(|<span class="kw">_</span>| {
                     SignalProtocolError::InvalidSealedSenderMessage(<span class="macro">format!</span>(
-                        <span class="string">&quot;encrypted message key had incorrect length {} (should be {})&quot;</span>,
+                        <span class="string">"encrypted message key had incorrect length {} (should be {})"</span>,
                         encrypted_message_key.len(),
                         sealed_sender_v2::MESSAGE_KEY_LEN
                     ))
@@ -3254,27 +3389,36 @@ with this test certificate ID, Bad Things will happen.
                 <span class="kw-2">&amp;</span>encrypted_message_key,
             )<span class="question-mark">?</span>;
 
-            <span class="kw">let </span>keys = sealed_sender_v2::DerivedKeys::calculate(<span class="kw-2">&amp;</span>m);
-            <span class="kw">if </span>!bool::from(keys.e.public_key.ct_eq(<span class="kw-2">&amp;</span>ephemeral_public)) {
+            <span class="kw">let </span>keys = sealed_sender_v2::DerivedKeys::new(<span class="kw-2">&amp;</span>m);
+            <span class="comment">// It is okay that this is not constant time; the only information revealed is whether
+            // the sender is using the new or old derivation for the ephemeral key, combined with
+            // which key the receiver tried first.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>derive_first_key: <span class="kw">fn</span>(<span class="kw">_</span>) -&gt; <span class="kw">_ </span>= sealed_sender_v2::DerivedKeys::derive_e;
+            <span class="kw">let </span><span class="kw-2">mut </span>derive_second_key: <span class="kw">fn</span>(<span class="kw">_</span>) -&gt; <span class="kw">_ </span>= sealed_sender_v2::DerivedKeys::derive_e_legacy;
+            <span class="kw">if </span>sealed_sender_v2::USE_LEGACY_EPHEMERAL_KEY_DERIVATION_FOR_ENCRYPT {
+                std::mem::swap(<span class="kw-2">&amp;mut </span>derive_first_key, <span class="kw-2">&amp;mut </span>derive_second_key);
+            }
+
+            <span class="kw">if </span>!bool::from(derive_first_key(<span class="kw-2">&amp;</span>keys).public_key.ct_eq(<span class="kw-2">&amp;</span>ephemeral_public))
+                &amp;&amp; !bool::from(derive_second_key(<span class="kw-2">&amp;</span>keys).public_key.ct_eq(<span class="kw-2">&amp;</span>ephemeral_public))
+            {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
-                    <span class="string">&quot;derived ephemeral key did not match key provided in message&quot;</span>.to_string(),
+                    <span class="string">"derived ephemeral key did not match key provided in message"</span>.to_string(),
                 ));
             }
 
             <span class="kw">let </span><span class="kw-2">mut </span>message_bytes = encrypted_message.into_vec();
-            Aes256GcmSiv::new_from_slice(<span class="kw-2">&amp;</span>keys.k)
-                .and_then(|aes_gcm_siv| {
-                    aes_gcm_siv.decrypt_in_place(
-                        <span class="comment">// There&#39;s no nonce because the key is already one-use.
-                        </span><span class="kw-2">&amp;</span>aes_gcm_siv::Nonce::default(),
-                        <span class="comment">// And there&#39;s no associated data.
-                        </span><span class="kw-2">&amp;</span>[],
-                        <span class="kw-2">&amp;mut </span>message_bytes,
-                    )
-                })
+            Aes256GcmSiv::new(<span class="kw-2">&amp;</span>keys.derive_k().into())
+                .decrypt_in_place(
+                    <span class="comment">// There's no nonce because the key is already one-use.
+                    </span><span class="kw-2">&amp;</span>aes_gcm_siv::Nonce::default(),
+                    <span class="comment">// And there's no associated data.
+                    </span><span class="kw-2">&amp;</span>[],
+                    <span class="kw-2">&amp;mut </span>message_bytes,
+                )
                 .map_err(|err| {
                     SignalProtocolError::InvalidSealedSenderMessage(<span class="macro">format!</span>(
-                        <span class="string">&quot;failed to decrypt inner message: {}&quot;</span>,
+                        <span class="string">"failed to decrypt inner message: {}"</span>,
                         err
                     ))
                 })<span class="question-mark">?</span>;
@@ -3290,7 +3434,7 @@ with this test certificate ID, Bad Things will happen.
             )<span class="question-mark">?</span>;
             <span class="kw">if </span>!bool::from(authentication_tag.ct_eq(<span class="kw-2">&amp;</span>at)) {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
-                    <span class="string">&quot;sender certificate key does not match authentication tag&quot;</span>.to_string(),
+                    <span class="string">"sender certificate key does not match authentication tag"</span>.to_string(),
                 ));
             }
 
@@ -3330,7 +3474,7 @@ with this test certificate ID, Bad Things will happen.
 ///
 /// This method calls [`sealed_sender_decrypt_to_usmc`] to extract the sender information, including
 /// the embedded [`SenderCertificate`]. The sender certificate (signed by the [`ServerCertificate`])
-/// is then validated against the `trust_root` baked into the client to ensure that the sender&#39;s
+/// is then validated against the `trust_root` baked into the client to ensure that the sender's
 /// identity was not forged.
 </span><span class="attr">#[allow(clippy::too_many_arguments)]
 </span><span class="kw">pub async fn </span>sealed_sender_decrypt(
@@ -3344,13 +3488,13 @@ with this test certificate ID, Bad Things will happen.
     session_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SessionStore,
     pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>PreKeyStore,
     signed_pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SignedPreKeyStore,
-    ctx: Context,
+    kyber_pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>KyberPreKeyStore,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;SealedSenderDecryptionResult&gt; {
-    <span class="kw">let </span>usmc = sealed_sender_decrypt_to_usmc(ciphertext, identity_store, ctx).<span class="kw">await</span><span class="question-mark">?</span>;
+    <span class="kw">let </span>usmc = sealed_sender_decrypt_to_usmc(ciphertext, identity_store).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="kw">if </span>!usmc.sender()<span class="question-mark">?</span>.validate(trust_root, timestamp)<span class="question-mark">? </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
-            <span class="string">&quot;trust root validation failed&quot;</span>.to_string(),
+            <span class="string">"trust root validation failed"</span>.to_string(),
         ));
     }
 
@@ -3381,7 +3525,6 @@ with this test certificate ID, Bad Things will happen.
                 session_store,
                 identity_store,
                 <span class="kw-2">&amp;mut </span>rng,
-                ctx,
             )
             .<span class="kw">await</span><span class="question-mark">?
         </span>}
@@ -3394,15 +3537,15 @@ with this test certificate ID, Bad Things will happen.
                 identity_store,
                 pre_key_store,
                 signed_pre_key_store,
+                kyber_pre_key_store,
                 <span class="kw-2">&amp;mut </span>rng,
-                ctx,
             )
             .<span class="kw">await</span><span class="question-mark">?
         </span>}
         msg_type =&gt; {
             <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidMessage(
                 msg_type,
-                <span class="string">&quot;unexpected message type for sealed_sender_decrypt&quot;</span>,
+                <span class="string">"unexpected message type for sealed_sender_decrypt"</span>,
             ));
         }
     };
@@ -3444,31 +3587,31 @@ with this test certificate ID, Bad Things will happen.
     //     ServerCertificate::new(1, server_key.public_key, &amp;trust_root, &amp;mut rng)?;
     //
     // let sender_cert = proto::sealed_sender::sender_certificate::Certificate {
-    //     sender_uuid: Some(&quot;aaaaaaaa-7000-11eb-b32a-33b8a8a487a6&quot;.to_string()),
+    //     sender_uuid: Some("aaaaaaaa-7000-11eb-b32a-33b8a8a487a6".to_string()),
     //     sender_e164: None,
     //     sender_device: Some(1),
     //     expires: Some(31337),
     //     identity_key: Some(sender_key.public_key.serialize().to_vec()),
     //     signer: Some(server_cert.to_protobuf()?),
-    //     some_fake_field: Some(&quot;crashing right down&quot;.to_string()),
+    //     some_fake_field: Some("crashing right down".to_string()),
     // };
     //
-    // eprintln!(&quot;&lt;SNIP&gt;&quot;);
+    // eprintln!("&lt;SNIP&gt;");
     // let serialized_certificate_data = sender_cert.encode_to_vec();
     // let certificate_data_encoded = hex::encode(&amp;serialized_certificate_data);
-    // eprintln!(&quot;let certificate_data_encoded = \&quot;{}\&quot;;&quot;, certificate_data_encoded);
+    // eprintln!("let certificate_data_encoded = \"{}\";", certificate_data_encoded);
     //
     // let certificate_signature = server_key.calculate_signature(&amp;serialized_certificate_data, &amp;mut rng)?;
     // let certificate_signature_encoded = hex::encode(certificate_signature);
-    // eprintln!(&quot;let certificate_signature_encoded = \&quot;{}\&quot;;&quot;, certificate_signature_encoded);
+    // eprintln!("let certificate_signature_encoded = \"{}\";", certificate_signature_encoded);
 
     // Step 4: update the following *_encoded fixture data with the new values from above.
-    </span><span class="kw">let </span>certificate_data_encoded = <span class="string">&quot;100119697a0000000000002221056c9d1f8deb82b9a898f9c277a1b74989ec009afb5c0acb5e8e69e3d5ca29d6322a690a2508011221053b03ca070e6f6b2f271d32f27321689cdf4e59b106c10b58fbe15063ed868a5a124024bc92954e52ad1a105b5bda85c9db410dcfeb42a671b45a523b3a46e9594a8bde0efc671d8e8e046b32c67f59b80a46ffdf24071850779bc21325107902af89322461616161616161612d373030302d313165622d623332612d333362386138613438376136ba3e136372617368696e6720726967687420646f776e&quot;</span>;
-    <span class="kw">let </span>certificate_signature_encoded = <span class="string">&quot;a22d8f86f5d00794f319add821e342c6ffffb6b34f741e569f8b321ab0255f2d1757ecf648e53a3602cae8f09b3fc80dcf27534d67efd272b6739afc31f75c8c&quot;</span>;
+    </span><span class="kw">let </span>certificate_data_encoded = <span class="string">"100119697a0000000000002221056c9d1f8deb82b9a898f9c277a1b74989ec009afb5c0acb5e8e69e3d5ca29d6322a690a2508011221053b03ca070e6f6b2f271d32f27321689cdf4e59b106c10b58fbe15063ed868a5a124024bc92954e52ad1a105b5bda85c9db410dcfeb42a671b45a523b3a46e9594a8bde0efc671d8e8e046b32c67f59b80a46ffdf24071850779bc21325107902af89322461616161616161612d373030302d313165622d623332612d333362386138613438376136ba3e136372617368696e6720726967687420646f776e"</span>;
+    <span class="kw">let </span>certificate_signature_encoded = <span class="string">"a22d8f86f5d00794f319add821e342c6ffffb6b34f741e569f8b321ab0255f2d1757ecf648e53a3602cae8f09b3fc80dcf27534d67efd272b6739afc31f75c8c"</span>;
 
     <span class="comment">// The rest of the test should be stable.
-    </span><span class="kw">let </span>certificate_data = hex::decode(certificate_data_encoded).expect(<span class="string">&quot;valid hex&quot;</span>);
-    <span class="kw">let </span>certificate_signature = hex::decode(certificate_signature_encoded).expect(<span class="string">&quot;valid hex&quot;</span>);
+    </span><span class="kw">let </span>certificate_data = hex::decode(certificate_data_encoded).expect(<span class="string">"valid hex"</span>);
+    <span class="kw">let </span>certificate_signature = hex::decode(certificate_signature_encoded).expect(<span class="string">"valid hex"</span>);
 
     <span class="kw">let </span>sender_certificate_data = proto::sealed_sender::SenderCertificate {
         certificate: <span class="prelude-val">Some</span>(certificate_data),
@@ -3480,5 +3623,4 @@ with this test certificate ID, Bad Things will happen.
     <span class="macro">assert!</span>(sender_certificate.validate(<span class="kw-2">&amp;</span>trust_root.public_key()<span class="question-mark">?</span>, <span class="number">31336</span>)<span class="question-mark">?</span>);
     <span class="prelude-val">Ok</span>(())
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_protocol" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0 (84c898d65 2023-04-16)" data-search-js="search-8a59a8356673ec1f.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

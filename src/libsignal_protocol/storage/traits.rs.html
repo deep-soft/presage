@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-e5ca3c64ee2f7cbe/39293fa/rust/protocol/src/storage/traits.rs`."><title>traits.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c4dbdcde0fbd8430.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-db279b6232be9c13.css"><link rel="stylesheet" disabled href="../../../static.files/dark-cf923f49f397b216.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-be46fdc453a55015.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-1b95b7cca98b26e5.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../libsignal_protocol/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-e5ca3c64ee2f7cbe/72f046f/rust/protocol/src/storage/traits.rs`."><title>traits.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libsignal_protocol" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -168,7 +169,7 @@
 <a href="#168" id="168">168</a>
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
-</pre><pre class="rust"><code><span class="comment">//
+</pre></div><pre class="rust"><code><span class="comment">//
 // Copyright 2020-2022 Signal Messenger, LLC.
 // SPDX-License-Identifier: AGPL-3.0-only
 //
@@ -181,14 +182,11 @@
 <span class="kw">use </span><span class="kw">crate</span>::address::ProtocolAddress;
 <span class="kw">use </span><span class="kw">crate</span>::error::Result;
 <span class="kw">use </span><span class="kw">crate</span>::sender_keys::SenderKeyRecord;
-<span class="kw">use </span><span class="kw">crate</span>::state::{PreKeyId, PreKeyRecord, SessionRecord, SignedPreKeyId, SignedPreKeyRecord};
+<span class="kw">use </span><span class="kw">crate</span>::state::{
+    KyberPreKeyId, KyberPreKeyRecord, PreKeyId, PreKeyRecord, SessionRecord, SignedPreKeyId,
+    SignedPreKeyRecord,
+};
 <span class="kw">use crate</span>::{IdentityKey, IdentityKeyPair};
-
-<span class="doccomment">/// Handle to FFI-provided context object.
-///
-/// This object is not manipulated in Rust, but is instead passed back to each FFI
-/// method invocation. This argument should just be [None] for all clients of the Rust-only API.
-</span><span class="kw">pub type </span>Context = <span class="prelude-ty">Option</span>&lt;<span class="kw-2">*mut </span>std::ffi::c_void&gt;;
 
 <span class="comment">// TODO: consider moving this enum into utils.rs?
 </span><span class="doccomment">/// Each Signal message can be considered to have exactly two participants, a sender and receiver.
@@ -211,7 +209,7 @@
 </span><span class="attr">#[async_trait(<span class="question-mark">?</span>Send)]
 </span><span class="kw">pub trait </span>IdentityKeyStore {
     <span class="doccomment">/// Return the single specific identity the store is assumed to represent, with private key.
-    </span><span class="kw">async fn </span>get_identity_key_pair(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: Context) -&gt; <span class="prelude-ty">Result</span>&lt;IdentityKeyPair&gt;;
+    </span><span class="kw">async fn </span>get_identity_key_pair(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;IdentityKeyPair&gt;;
 
     <span class="doccomment">/// Return a [u32] specific to this store instance.
     ///
@@ -221,18 +219,17 @@
     /// If the same *device* is unregistered, then registers again, the [ProtocolAddress::device_id]
     /// may be the same, but the store registration id returned by this method should
     /// be regenerated.
-    </span><span class="kw">async fn </span>get_local_registration_id(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: Context) -&gt; <span class="prelude-ty">Result</span>&lt;u32&gt;;
+    </span><span class="kw">async fn </span>get_local_registration_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u32&gt;;
 
     <span class="comment">// TODO: make this into an enum instead of a bool!
-    </span><span class="doccomment">/// Record an identity into the store. The identity is then considered &quot;trusted&quot;.
+    </span><span class="doccomment">/// Record an identity into the store. The identity is then considered "trusted".
     ///
     /// The return value represents whether an existing identity was replaced (`Ok(true)`). If it is
-    /// new or hasn&#39;t changed, the return value should be `Ok(false)`.
+    /// new or hasn't changed, the return value should be `Ok(false)`.
     </span><span class="kw">async fn </span>save_identity(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: <span class="kw-2">&amp;</span>ProtocolAddress,
         identity: <span class="kw-2">&amp;</span>IdentityKey,
-        ctx: Context,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
 
     <span class="doccomment">/// Return whether an identity is trusted for the role specified by `direction`.
@@ -241,33 +238,23 @@
         address: <span class="kw-2">&amp;</span>ProtocolAddress,
         identity: <span class="kw-2">&amp;</span>IdentityKey,
         direction: Direction,
-        ctx: Context,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt;;
 
     <span class="doccomment">/// Return the public identity for the given `address`, if known.
-    </span><span class="kw">async fn </span>get_identity(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        address: <span class="kw-2">&amp;</span>ProtocolAddress,
-        ctx: Context,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;IdentityKey&gt;&gt;;
+    </span><span class="kw">async fn </span>get_identity(<span class="kw-2">&amp;</span><span class="self">self</span>, address: <span class="kw-2">&amp;</span>ProtocolAddress) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;IdentityKey&gt;&gt;;
 }
 
 <span class="doccomment">/// Interface for storing pre-keys downloaded from a server.
 </span><span class="attr">#[async_trait(<span class="question-mark">?</span>Send)]
 </span><span class="kw">pub trait </span>PreKeyStore {
     <span class="doccomment">/// Look up the pre-key corresponding to `prekey_id`.
-    </span><span class="kw">async fn </span>get_pre_key(<span class="kw-2">&amp;</span><span class="self">self</span>, prekey_id: PreKeyId, ctx: Context) -&gt; <span class="prelude-ty">Result</span>&lt;PreKeyRecord&gt;;
+    </span><span class="kw">async fn </span>get_pre_key(<span class="kw-2">&amp;</span><span class="self">self</span>, prekey_id: PreKeyId) -&gt; <span class="prelude-ty">Result</span>&lt;PreKeyRecord&gt;;
 
     <span class="doccomment">/// Set the entry for `prekey_id` to the value of `record`.
-    </span><span class="kw">async fn </span>save_pre_key(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        prekey_id: PreKeyId,
-        record: <span class="kw-2">&amp;</span>PreKeyRecord,
-        ctx: Context,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
+    </span><span class="kw">async fn </span>save_pre_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, prekey_id: PreKeyId, record: <span class="kw-2">&amp;</span>PreKeyRecord) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 
     <span class="doccomment">/// Remove the entry for `prekey_id`.
-    </span><span class="kw">async fn </span>remove_pre_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, prekey_id: PreKeyId, ctx: Context) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
+    </span><span class="kw">async fn </span>remove_pre_key(<span class="kw-2">&amp;mut </span><span class="self">self</span>, prekey_id: PreKeyId) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 }
 
 <span class="doccomment">/// Interface for storing signed pre-keys downloaded from a server.
@@ -277,7 +264,6 @@
     </span><span class="kw">async fn </span>get_signed_pre_key(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         signed_prekey_id: SignedPreKeyId,
-        ctx: Context,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SignedPreKeyRecord&gt;;
 
     <span class="doccomment">/// Set the entry for `signed_prekey_id` to the value of `record`.
@@ -285,8 +271,27 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         signed_prekey_id: SignedPreKeyId,
         record: <span class="kw-2">&amp;</span>SignedPreKeyRecord,
-        ctx: Context,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
+}
+
+<span class="doccomment">/// Interface for storing signed Kyber pre-keys downloaded from a server.
+///
+/// NB: libsignal makes no distinction between one-time and last-resort pre-keys.
+</span><span class="attr">#[async_trait(<span class="question-mark">?</span>Send)]
+</span><span class="kw">pub trait </span>KyberPreKeyStore {
+    <span class="doccomment">/// Look up the signed kyber pre-key corresponding to `kyber_prekey_id`.
+    </span><span class="kw">async fn </span>get_kyber_pre_key(<span class="kw-2">&amp;</span><span class="self">self</span>, kyber_prekey_id: KyberPreKeyId) -&gt; <span class="prelude-ty">Result</span>&lt;KyberPreKeyRecord&gt;;
+
+    <span class="doccomment">/// Set the entry for `kyber_prekey_id` to the value of `record`.
+    </span><span class="kw">async fn </span>save_kyber_pre_key(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        kyber_prekey_id: KyberPreKeyId,
+        record: <span class="kw-2">&amp;</span>KyberPreKeyRecord,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
+
+    <span class="doccomment">/// Mark the entry for `kyber_prekey_id` as "used".
+    /// This would mean different things for one-time and last-resort Kyber keys.
+    </span><span class="kw">async fn </span>mark_kyber_pre_key_used(<span class="kw-2">&amp;mut </span><span class="self">self</span>, kyber_prekey_id: KyberPreKeyId) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 }
 
 <span class="doccomment">/// Interface for a Signal client instance to store a session associated with another particular
@@ -299,18 +304,13 @@
 </span><span class="attr">#[async_trait(<span class="question-mark">?</span>Send)]
 </span><span class="kw">pub trait </span>SessionStore {
     <span class="doccomment">/// Look up the session corresponding to `address`.
-    </span><span class="kw">async fn </span>load_session(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        address: <span class="kw-2">&amp;</span>ProtocolAddress,
-        ctx: Context,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SessionRecord&gt;&gt;;
+    </span><span class="kw">async fn </span>load_session(<span class="kw-2">&amp;</span><span class="self">self</span>, address: <span class="kw-2">&amp;</span>ProtocolAddress) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SessionRecord&gt;&gt;;
 
     <span class="doccomment">/// Set the entry for `address` to the value of `record`.
     </span><span class="kw">async fn </span>store_session(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         address: <span class="kw-2">&amp;</span>ProtocolAddress,
         record: <span class="kw-2">&amp;</span>SessionRecord,
-        ctx: Context,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 }
 
@@ -324,7 +324,6 @@
         distribution_id: Uuid,
         <span class="comment">// TODO: pass this by value!
         </span>record: <span class="kw-2">&amp;</span>SenderKeyRecord,
-        ctx: Context,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt;;
 
     <span class="doccomment">/// Look up the entry corresponding to `(sender, distribution_id)`.
@@ -332,11 +331,12 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         sender: <span class="kw-2">&amp;</span>ProtocolAddress,
         distribution_id: Uuid,
-        ctx: Context,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;SenderKeyRecord&gt;&gt;;
 }
 
 <span class="doccomment">/// Mixes in all the store interfaces defined in this module.
-</span><span class="kw">pub trait </span>ProtocolStore: SessionStore + PreKeyStore + SignedPreKeyStore + IdentityKeyStore {}
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libsignal_protocol" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0 (84c898d65 2023-04-16)" data-search-js="search-8a59a8356673ec1f.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</span><span class="kw">pub trait </span>ProtocolStore:
+    SessionStore + PreKeyStore + SignedPreKeyStore + KyberPreKeyStore + IdentityKeyStore
+{
+}
+</code></pre></div></section></main></body></html>

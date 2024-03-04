@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AttachmentPointerFlags","ContentBody","DataMessageFlags","GroupType","ServiceError"],"mod":["sync_message"],"struct":["AttachmentPointer","CallMessage","Content","DataMessage","GroupContext","GroupContextV2","Metadata","NullMessage","Reaction","ReceiptMessage","SyncMessage","TypingMessage"]};

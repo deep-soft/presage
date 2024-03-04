@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ContentBody","GroupType","ParseServiceAddressError","SignalServers"],"mod":["content","proto"],"struct":["AttachmentSpec","Contact","Content","DataMessage","GroupContext","GroupContextV2","GroupMasterKey","GroupSecretParams","Metadata","PhoneNumber","ServiceAddress","SyncMessage","Uuid"]};

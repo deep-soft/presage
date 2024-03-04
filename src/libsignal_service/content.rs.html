@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-service-rs-e91a0c40cab55da9/c2f70ef/libsignal-service/src/content.rs`."><title>content.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c4dbdcde0fbd8430.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../static.files/light-db279b6232be9c13.css"><link rel="stylesheet" disabled href="../../static.files/dark-cf923f49f397b216.css"><link rel="stylesheet" disabled href="../../static.files/ayu-be46fdc453a55015.css"><script src="../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../static.files/source-script-1b95b7cca98b26e5.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../libsignal_service/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-service-rs-e91a0c40cab55da9/1a8cdf8/libsignal-service/src/content.rs`."><title>content.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -125,18 +126,77 @@
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
 <a href="#127" id="127">127</a>
-</pre><pre class="rust"><code><span class="kw">use </span>libsignal_protocol::ProtocolAddress;
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>libsignal_protocol::ProtocolAddress;
+<span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">pub use crate</span>::{
     proto::{
         attachment_pointer::Flags <span class="kw">as </span>AttachmentPointerFlags,
         data_message::Flags <span class="kw">as </span>DataMessageFlags, data_message::Reaction,
         group_context::Type <span class="kw">as </span>GroupType, sync_message, AttachmentPointer,
-        CallMessage, DataMessage, GroupContext, GroupContextV2, NullMessage,
-        ReceiptMessage, SyncMessage, TypingMessage,
+        CallMessage, DataMessage, EditMessage, GroupContext, GroupContextV2,
+        NullMessage, PniSignatureMessage, ReceiptMessage, StoryMessage,
+        SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };
+
+<span class="kw">mod </span>data_message;
+<span class="kw">mod </span>story_message;
 
 <span class="attr">#[derive(Clone, Debug)]
 </span><span class="kw">pub struct </span>Metadata {
@@ -145,6 +205,11 @@
     <span class="kw">pub </span>timestamp: u64,
     <span class="kw">pub </span>needs_receipt: bool,
     <span class="kw">pub </span>unidentified_sender: bool,
+
+    <span class="doccomment">/// A unique UUID for this specific message, produced by the Signal servers.
+    ///
+    /// The server GUID is used to report spam messages.
+    </span><span class="kw">pub </span>server_guid: <span class="prelude-ty">Option</span>&lt;Uuid&gt;,
 }
 
 <span class="kw">impl </span>Metadata {
@@ -173,7 +238,7 @@
         metadata: Metadata,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, ServiceError&gt; {
         <span class="comment">// The Java version also assumes only one content type at a time.
-        // It&#39;s a bit sad that we cannot really match here, we&#39;ve got no
+        // It's a bit sad that we cannot really match here, we've got no
         // r#type() method.
         // Allow the manual map (if let Some -&gt; option.map(||)), because it
         // reduces the git diff when more types would be added.
@@ -187,6 +252,16 @@
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(msg) = p.receipt_message {
             <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_body(msg, metadata))
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(msg) = p.typing_message {
+            <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_body(msg, metadata))
+        <span class="comment">// } else if let Some(msg) = p.sender_key_distribution_message {
+        //     Ok(Self::from_body(msg, metadata))
+        // } else if let Some(msg) = p.decryption_error_message {
+        //     Ok(Self::from_body(msg, metadata))
+        </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>(msg) = p.story_message {
+            <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_body(msg, metadata))
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(msg) = p.pni_signature_message {
+            <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_body(msg, metadata))
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(msg) = p.edit_message {
             <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_body(msg, metadata))
         } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(ServiceError::UnsupportedContent)
@@ -203,6 +278,11 @@
     CallMessage(CallMessage),
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
+    <span class="comment">// SenderKeyDistributionMessage(SenderKeyDistributionMessage),
+    // DecryptionErrorMessage(DecryptionErrorMessage),
+    </span>StoryMessage(StoryMessage),
+    PniSignatureMessage(PniSignatureMessage),
+    EditMessage(EditMessage),
 }
 
 <span class="kw">impl </span>ContentBody {
@@ -232,6 +312,28 @@
                 typing_message: <span class="prelude-val">Some</span>(msg),
                 ..Default::default()
             },
+            <span class="comment">// XXX Those two are serialized as Vec&lt;u8&gt; and I'm not currently sure how to handle
+            // them.
+            // Self::SenderKeyDistributionMessage(msg) =&gt; crate::proto::Content {
+            //     sender_key_distribution_message: Some(msg),
+            //     ..Default::default()
+            // },
+            // Self::DecryptionErrorMessage(msg) =&gt; crate::proto::Content {
+            //     decryption_error_message: Some(msg.serialized()),
+            //     ..Default::default()
+            // },
+            </span><span class="self">Self</span>::StoryMessage(msg) =&gt; <span class="kw">crate</span>::proto::Content {
+                story_message: <span class="prelude-val">Some</span>(msg),
+                ..Default::default()
+            },
+            <span class="self">Self</span>::PniSignatureMessage(msg) =&gt; <span class="kw">crate</span>::proto::Content {
+                pni_signature_message: <span class="prelude-val">Some</span>(msg),
+                ..Default::default()
+            },
+            <span class="self">Self</span>::EditMessage(msg) =&gt; <span class="kw">crate</span>::proto::Content {
+                edit_message: <span class="prelude-val">Some</span>(msg),
+                ..Default::default()
+            },
         }
     }
 }
@@ -252,5 +354,11 @@
 <span class="macro">impl_from_for_content_body!</span>(CallMessage(CallMessage));
 <span class="macro">impl_from_for_content_body!</span>(ReceiptMessage(ReceiptMessage));
 <span class="macro">impl_from_for_content_body!</span>(TypingMessage(TypingMessage));
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0 (84c898d65 2023-04-16)" data-search-js="search-8a59a8356673ec1f.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+<span class="comment">// impl_from_for_content_body!(SenderKeyDistributionMessage(
+//     SenderKeyDistributionMessage
+// ));
+// impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
+</span><span class="macro">impl_from_for_content_body!</span>(StoryMessage(StoryMessage));
+<span class="macro">impl_from_for_content_body!</span>(PniSignatureMessage(PniSignatureMessage));
+<span class="macro">impl_from_for_content_body!</span>(EditMessage(EditMessage));
+</code></pre></div></section></main></body></html>
