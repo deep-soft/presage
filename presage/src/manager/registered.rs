@@ -12,7 +12,7 @@ use libsignal_service::groups_v2::{decrypt_group, Group, GroupsManager, InMemory
 use libsignal_service::messagepipe::{Incoming, MessagePipe, ServiceCredentials};
 use libsignal_service::models::Contact;
 use libsignal_service::prelude::phonenumber::PhoneNumber;
-use libsignal_service::prelude::{ProtobufMessage, Uuid};
+use libsignal_service::prelude::{MessageSenderError, ProtobufMessage, Uuid};
 use libsignal_service::profile_cipher::ProfileCipher;
 use libsignal_service::proto::data_message::Delete;
 use libsignal_service::proto::{
@@ -20,21 +20,17 @@ use libsignal_service::proto::{
     AttachmentPointer, DataMessage, EditMessage, GroupContextV2, NullMessage, SyncMessage,
     Verified,
 };
-use libsignal_service::protocol::SenderCertificate;
-use libsignal_service::protocol::{PrivateKey, PublicKey};
+use libsignal_service::protocol::{IdentityKeyStore, SenderCertificate};
 use libsignal_service::provisioning::{generate_registration_id, ProvisioningError};
 use libsignal_service::push_service::{
-    AccountAttributes, DeviceCapabilities, PushService, ServiceError, ServiceIdType, ServiceIds,
-    WhoAmIResponse, DEFAULT_DEVICE_ID,
+    AccountAttributes, DeviceCapabilities, DeviceInfo, PushService, ServiceError, ServiceIdType,
+    ServiceIds, WhoAmIResponse, DEFAULT_DEVICE_ID,
 };
 use libsignal_service::receiver::MessageReceiver;
 use libsignal_service::sender::{AttachmentSpec, AttachmentUploadError};
 use libsignal_service::sticker_cipher::derive_key;
 use libsignal_service::unidentified_access::UnidentifiedAccess;
-use libsignal_service::utils::{
-    serde_optional_private_key, serde_optional_public_key, serde_private_key, serde_public_key,
-    serde_signaling_key,
-};
+use libsignal_service::utils::serde_signaling_key;
 use libsignal_service::websocket::SignalWebSocket;
 use libsignal_service::zkgroup::groups::{GroupMasterKey, GroupSecretParams};
 use libsignal_service::zkgroup::profiles::ProfileKey;
@@ -46,6 +42,7 @@ use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use tokio::sync::Mutex;
+use url::Url;
 
 use crate::cache::CacheCell;
 use crate::serde::serde_profile_key;
@@ -54,6 +51,12 @@ use crate::{AvatarBytes, Error, Manager};
 
 type ServiceCipher<S> = cipher::ServiceCipher<S, StdRng>;
 type MessageSender<S> = libsignal_service::prelude::MessageSender<HyperPushService, S, StdRng>;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RegistrationType {
+    Primary,
+    Secondary,
+}
 
 /// Manager state when the client is registered and can send and receive messages from Signal
 #[derive(Clone)]
@@ -109,14 +112,6 @@ pub struct RegistrationData {
     pub registration_id: u32,
     #[serde(default)]
     pub pni_registration_id: Option<u32>,
-    #[serde(with = "serde_private_key", rename = "private_key")]
-    pub(crate) aci_private_key: PrivateKey,
-    #[serde(with = "serde_public_key", rename = "public_key")]
-    pub(crate) aci_public_key: PublicKey,
-    #[serde(with = "serde_optional_private_key", default)]
-    pub(crate) pni_private_key: Option<PrivateKey>,
-    #[serde(with = "serde_optional_public_key", default)]
-    pub(crate) pni_public_key: Option<PublicKey>,
     #[serde(with = "serde_profile_key")]
     pub(crate) profile_key: ProfileKey,
 }
@@ -140,16 +135,6 @@ impl RegistrationData {
     /// The name of the device (if linked as secondary)
     pub fn device_name(&self) -> Option<&str> {
         self.device_name.as_deref()
-    }
-
-    /// Account identity public key
-    pub fn aci_public_key(&self) -> PublicKey {
-        self.aci_public_key
-    }
-
-    /// Account identity private key
-    pub fn aci_private_key(&self) -> PrivateKey {
-        self.aci_private_key
     }
 }
 
@@ -271,22 +256,22 @@ impl<S: Store> Manager<S, Registered> {
             Some(self.state.data.profile_key),
         );
 
-        // TODO: Do the same for PNI once implemented upstream.
-        let (pre_keys_offset_id, next_signed_pre_key_id, next_pq_pre_key_id) = account_manager
+        account_manager
             .update_pre_key_bundle(
-                &mut self.store.clone(),
+                &mut self.store.aci_protocol_store(),
                 ServiceIdType::AccountIdentity,
                 &mut self.rng,
                 true,
             )
             .await?;
 
-        self.store.set_next_pre_key_id(pre_keys_offset_id).await?;
-        self.store
-            .set_next_signed_pre_key_id(next_signed_pre_key_id)
-            .await?;
-        self.store
-            .set_next_pq_pre_key_id(next_pq_pre_key_id)
+        account_manager
+            .update_pre_key_bundle(
+                &mut self.store.pni_protocol_store(),
+                ServiceIdType::PhoneNumberIdentity,
+                &mut self.rng,
+                true,
+            )
             .await?;
 
         trace!("registered pre keys");
@@ -327,8 +312,11 @@ impl<S: Store> Manager<S, Registered> {
                 unrestricted_unidentified_access: false,
                 discoverable_by_phone_number: true,
                 capabilities: DeviceCapabilities {
-                    gv2: true,
-                    gv1_migration: true,
+                    gift_badges: true,
+                    payment_activation: false,
+                    pni: true,
+                    sender_key: true,
+                    stories: false,
                     ..Default::default()
                 },
             })
@@ -404,7 +392,7 @@ impl<S: Store> Manager<S, Registered> {
                 .as_secs();
 
             if let Some(expiration) = sender_certificate.and_then(|s| s.expiration().ok()) {
-                expiration >= seconds_since_epoch - 600
+                seconds_since_epoch <= expiration.epoch_millis() / 1000 + 600
             } else {
                 true
             }
@@ -606,12 +594,12 @@ impl<S: Store> Manager<S, Registered> {
         &mut self,
         mode: ReceivingMode,
     ) -> Result<impl Stream<Item = Content>, Error<S::Error>> {
-        struct StreamState<S, C: ContentsStore + Send + Sync> {
-            encrypted_messages: S,
+        struct StreamState<Receiver, Store, AciStore> {
+            encrypted_messages: Receiver,
             message_receiver: MessageReceiver<HyperPushService>,
-            service_cipher: ServiceCipher<C>,
+            service_cipher: ServiceCipher<AciStore>,
             push_service: HyperPushService,
-            store: C,
+            store: Store,
             groups_manager: GroupsManager<HyperPushService, InMemoryCredentialsCache>,
             mode: ReceivingMode,
         }
@@ -811,6 +799,10 @@ impl<S: Store> Manager<S, Registered> {
         let mut sender = self.new_message_sender().await?;
 
         let online_only = false;
+        // TODO: Populate this flag based on the recipient information
+        //
+        // Issue <https://github.com/whisperfish/presage/issues/252>
+        let include_pni_signature = false;
         let recipient = recipient_addr.into();
         let mut content_body: ContentBody = message.into();
 
@@ -855,6 +847,7 @@ impl<S: Store> Manager<S, Registered> {
                 content_body.clone(),
                 timestamp,
                 online_only,
+                include_pni_signature,
             )
             .await?;
 
@@ -953,7 +946,12 @@ impl<S: Store> Manager<S, Registered> {
                         key: profile_key.derive_access_key().to_vec(),
                         certificate: sender_certificate.clone(),
                     });
-            recipients.push((member.uuid.into(), unidentified_access));
+            let include_pni_signature = true;
+            recipients.push((
+                member.uuid.into(),
+                unidentified_access,
+                include_pni_signature,
+            ));
         }
 
         let online_only = false;
@@ -961,8 +959,20 @@ impl<S: Store> Manager<S, Registered> {
             .send_message_to_group(recipients, content_body.clone(), timestamp, online_only)
             .await;
 
-        // return first error if any
-        results.into_iter().find(|res| res.is_err()).transpose()?;
+        // TODO: Handle the NotFound error in the future by removing all sessions to this UUID and marking it as unregistered, not sending any messages to this contact anymore.
+        results
+            .into_iter()
+            .find(|res| match res {
+                Ok(_) => false,
+                // Ignore any NotFound errors, those mean that e.g. some contact in a group deleted his account.
+                Err(MessageSenderError::NotFound { uuid }) => {
+                    debug!("UUID {uuid} not found, skipping sent message result");
+                    false
+                }
+                // return first error if any
+                Err(_) => true,
+            })
+            .transpose()?;
 
         let content = Content {
             metadata: Metadata {
@@ -990,7 +1000,15 @@ impl<S: Store> Manager<S, Registered> {
 
     /// Clears all sessions established wiht [recipient](ServiceAddress).
     pub async fn clear_sessions(&self, recipient: &ServiceAddress) -> Result<(), Error<S::Error>> {
-        self.store.delete_all_sessions(recipient).await?;
+        use libsignal_service::session_store::SessionStoreExt;
+        self.store
+            .aci_protocol_store()
+            .delete_all_sessions(recipient)
+            .await?;
+        self.store
+            .pni_protocol_store()
+            .delete_all_sessions(recipient)
+            .await?;
         Ok(())
     }
 
@@ -1140,13 +1158,17 @@ impl<S: Store> Manager<S, Registered> {
     }
 
     /// Creates a new message sender.
-    async fn new_message_sender(&self) -> Result<MessageSender<S>, Error<S::Error>> {
-        let local_addr = ServiceAddress {
-            uuid: self.state.data.service_ids.aci,
-        };
-
+    async fn new_message_sender(&self) -> Result<MessageSender<S::AciStore>, Error<S::Error>> {
         let identified_websocket = self.identified_websocket(false).await?;
         let unidentified_websocket = self.unidentified_websocket().await?;
+
+        let aci_protocol_store = self.store.aci_protocol_store();
+        let aci_identity_keypair = aci_protocol_store.get_identity_key_pair().await?;
+        let pni_identity_keypair = self
+            .store
+            .pni_protocol_store()
+            .get_identity_key_pair()
+            .await?;
 
         Ok(MessageSender::new(
             identified_websocket,
@@ -1154,16 +1176,19 @@ impl<S: Store> Manager<S, Registered> {
             self.identified_push_service(),
             self.new_service_cipher()?,
             self.rng.clone(),
-            self.store.clone(),
-            local_addr,
+            aci_protocol_store,
+            self.state.data.service_ids.aci,
+            self.state.data.service_ids.pni,
+            aci_identity_keypair,
+            Some(pni_identity_keypair),
             self.state.device_id().into(),
         ))
     }
 
     /// Creates a new service cipher.
-    fn new_service_cipher(&self) -> Result<ServiceCipher<S>, Error<S::Error>> {
+    fn new_service_cipher(&self) -> Result<ServiceCipher<S::AciStore>, Error<S::Error>> {
         let service_cipher = ServiceCipher::new(
-            self.store.clone(),
+            self.store.aci_protocol_store(),
             self.rng.clone(),
             self.state
                 .service_configuration()
@@ -1196,6 +1221,68 @@ impl<S: Store> Manager<S, Registered> {
                 None => Ok("".to_string()),
             },
         }
+    }
+
+    /// Returns how this client was registered, either as a primary or secondary device.
+    pub fn registration_type(&self) -> RegistrationType {
+        if self.state.data.device_name.is_some() {
+            RegistrationType::Secondary
+        } else {
+            RegistrationType::Primary
+        }
+    }
+
+    /// As a primary device, link a secondary device.
+    pub async fn link_secondary(&self, secondary: Url) -> Result<(), Error<S::Error>> {
+        // XXX: What happens if secondary device? Possible to use static typing to make this method call impossible in that case?
+        if self.registration_type() != RegistrationType::Primary {
+            return Err(Error::NotPrimaryDevice);
+        }
+
+        let credentials = self.credentials().ok_or(Error::NotYetRegisteredError)?;
+        let mut account_manager = AccountManager::new(
+            self.identified_push_service(),
+            Some(self.state.data.profile_key),
+        );
+        let store = self.store();
+
+        account_manager
+            .link_device(
+                secondary,
+                &store.aci_protocol_store(),
+                &store.pni_protocol_store(),
+                credentials,
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// As a primary device, unlink a secondary device.
+    pub async fn unlink_secondary(&self, device_id: i64) -> Result<(), Error<S::Error>> {
+        // XXX: What happens if secondary device? Possible to use static typing to make this method call impossible in that case?
+        if self.registration_type() != RegistrationType::Primary {
+            return Err(Error::NotPrimaryDevice);
+        }
+        self.identified_push_service()
+            .unlink_device(device_id)
+            .await?;
+        Ok(())
+    }
+
+    /// As a primary device, list all the devices (uncluding the current device).
+    pub async fn devices(&self) -> Result<Vec<DeviceInfo>, Error<S::Error>> {
+        // XXX: What happens if secondary device? Possible to use static typing to make this method call impossible in that case?
+        if self.registration_type() != RegistrationType::Primary {
+            return Err(Error::<S::Error>::NotPrimaryDevice);
+        }
+
+        let aci_protocol_store = self.store.aci_protocol_store();
+        let mut account_manager = AccountManager::new(
+            self.identified_push_service(),
+            Some(self.state.data.profile_key),
+        );
+
+        Ok(account_manager.linked_devices(&aci_protocol_store).await?)
     }
 
     /// Deprecated methods

@@ -1,4 +1,3 @@
-use core::fmt;
 use std::convert::TryInto;
 use std::path::Path;
 use std::path::PathBuf;
@@ -492,7 +491,12 @@ async fn run<S: Store>(subcommand: Cmd, config_store: S) -> anyhow::Result<()> {
             let stdin = io::stdin();
             let reader = BufReader::new(stdin);
             if let Some(confirmation_code) = reader.lines().next_line().await? {
-                manager.confirm_verification_code(confirmation_code).await?;
+                let registered_manager =
+                    manager.confirm_verification_code(confirmation_code).await?;
+                println!(
+                    "Account identifier: {}",
+                    registered_manager.registration_data().aci()
+                );
             }
         }
         Cmd::LinkDevice {
@@ -510,7 +514,9 @@ async fn run<S: Store>(subcommand: Cmd, config_store: S) -> anyhow::Result<()> {
                 async move {
                     match provisioning_link_rx.await {
                         Ok(url) => {
-                            qr2term::print_qr(url.to_string()).expect("failed to render qrcode")
+                            println!("Please scan in the QR code:");
+                            qr2term::print_qr(url.to_string()).expect("failed to render qrcode");
+                            println!("Alternatively, use the URL: {}", url);
                         }
                         Err(e) => log::error!("Error linking device: {e}"),
                     }
@@ -708,18 +714,4 @@ fn parse_base64_profile_key(s: &str) -> anyhow::Result<ProfileKey> {
         .try_into()
         .map_err(|_| anyhow!("profile key of invalid length"))?;
     Ok(ProfileKey::create(bytes))
-}
-
-struct DebugGroup<'a>(&'a Group);
-
-impl fmt::Debug for DebugGroup<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let group = &self.0;
-        f.debug_struct("Group")
-            .field("title", &group.title)
-            .field("avatar", &group.avatar)
-            .field("revision", &group.revision)
-            .field("description", &group.description)
-            .finish()
-    }
 }

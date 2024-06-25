@@ -41,7 +41,7 @@ pub enum Error<S: std::error::Error> {
     #[error("no provisioning message received")]
     NoProvisioningMessageReceived,
     #[error("qr code error")]
-    LinkError,
+    LinkingError,
     #[error("missing key {0} in config DB")]
     MissingKeyError(Cow<'static, str>),
     #[error("message pipe not started, you need to start receiving messages before you can send anything back")]
@@ -72,6 +72,8 @@ pub enum Error<S: std::error::Error> {
     UnverifiedRegistrationSession,
     #[error("profile cipher error")]
     ProfileCipherError(#[from] libsignal_service::profile_cipher::ProfileCipherError),
+    #[error("An operation was requested that requires the registration to be primary, but it was only secondary")]
+    NotPrimaryDevice,
 }
 
 impl<S: StoreError> From<S> for Error<S> {
