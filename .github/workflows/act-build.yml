@@ -1,4 +1,4 @@
-# 2024-03-04 16:00
+# 2024-06-26 07:00
 # sed -i 's!0ad842f7646b21feca3c79d1e7f73d052529314d!9d55addebe010f0acbcabdfc02ab41979c1863e0!' presage/Cargo.toml
 name: act - Build
 
@@ -127,7 +127,7 @@ jobs:
 ###
 # zip release begin
       - name: Create Archive Release
-        uses: deep-soft/zip-release@v2
+        uses: deep-soft/zip-release@v3
         with:
           type: 'zip'
           filename: '${{ env.TAG_NAME }}-${{ env.PROG_VERSION  }}-${{ github.job }}.zip'
@@ -145,7 +145,7 @@ jobs:
 
       - name: Publish Release
         continue-on-error: true
-        uses: deep-soft/action-gh-release@v1
+        uses: deep-soft/action-gh-release@v2.1
         with:
           draft: true
           tag_name: ${{ env.TAG_NAME }}-${{ github.job }}
@@ -233,7 +233,7 @@ jobs:
 ###
 # zip release begin
       - name: Create Archive Release
-        uses: deep-soft/zip-release@v2
+        uses: deep-soft/zip-release@v3
         with:
           type: 'zip'
           filename: '${{ env.TAG_NAME }}-${{ env.PROG_VERSION  }}-${{ github.job }}.zip'
@@ -251,7 +251,7 @@ jobs:
 
       - name: Publish Release
         continue-on-error: true
-        uses: deep-soft/action-gh-release@v1
+        uses: deep-soft/action-gh-release@v2.1
         with:
           draft: true
           tag_name: ${{ env.TAG_NAME }}-${{ github.job }}
