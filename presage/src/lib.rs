@@ -1,6 +1,6 @@
-mod cache;
 mod errors;
 pub mod manager;
+pub mod model;
 mod serde;
 pub mod store;
 

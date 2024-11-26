@@ -7,8 +7,6 @@ mod registration;
 
 use std::fmt;
 
-use rand::rngs::StdRng;
-
 pub use self::confirmation::Confirmation;
 pub use self::linking::Linking;
 pub use self::registered::{ReceivingMode, Registered, RegistrationData, RegistrationType};
@@ -27,8 +25,6 @@ pub struct Manager<Store, State> {
     store: Store,
     /// Part of the manager which is persisted in the store.
     state: State,
-    /// Random number generator
-    rng: StdRng,
 }
 
 impl<Store, State: fmt::Debug> fmt::Debug for Manager<Store, State> {
@@ -36,5 +32,21 @@ impl<Store, State: fmt::Debug> fmt::Debug for Manager<Store, State> {
         f.debug_struct("Manager")
             .field("state", &self.state)
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn managers_are_sync() {
+        fn is_sync<T: Sync>() {}
+
+        // Store trait has Send + Sync as super-trait, test States only
+        is_sync::<Manager<(), Confirmation>>();
+        is_sync::<Manager<(), Linking>>();
+        is_sync::<Manager<(), Registration>>();
+        is_sync::<Manager<(), Registered>>();
     }
 }

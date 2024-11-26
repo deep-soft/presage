@@ -1,15 +1,14 @@
 use futures::channel::{mpsc, oneshot};
 use futures::{future, StreamExt};
 use libsignal_service::configuration::{ServiceConfiguration, SignalServers};
+use libsignal_service::prelude::PushService;
 use libsignal_service::protocol::IdentityKeyPair;
 use libsignal_service::provisioning::{
     link_device, NewDeviceRegistration, SecondaryDeviceProvisioning,
 };
-use libsignal_service_hyper::push_service::HyperPushService;
-use log::info;
 use rand::distributions::{Alphanumeric, DistString};
-use rand::rngs::StdRng;
-use rand::{RngCore, SeedableRng};
+use rand::{thread_rng, RngCore};
+use tracing::info;
 use url::Url;
 
 use crate::manager::registered::RegistrationData;
@@ -29,12 +28,13 @@ impl<S: Store> Manager<S, Linking> {
     /// use futures::{channel::oneshot, future, StreamExt};
     /// use presage::libsignal_service::configuration::SignalServers;
     /// use presage::Manager;
-    /// use presage_store_sled::{MigrationConflictStrategy, OnNewIdentity, SledStore};
+    /// use presage::model::identity::OnNewIdentity;
+    /// use presage_store_sled::{MigrationConflictStrategy, SledStore};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let store =
-    ///         SledStore::open("/tmp/presage-example", MigrationConflictStrategy::Drop, OnNewIdentity::Trust)?;
+    ///         SledStore::open("/tmp/presage-example", MigrationConflictStrategy::Drop, OnNewIdentity::Trust).await?;
     ///
     ///     let (mut tx, mut rx) = oneshot::channel();
     ///     let (manager, err) = future::join(
@@ -64,10 +64,10 @@ impl<S: Store> Manager<S, Linking> {
     ) -> Result<Manager<S, Registered>, Error<S::Error>> {
         // clear the database: the moment we start the process, old API credentials are invalidated
         // and you won't be able to use this client anyways
-        store.clear_registration()?;
+        store.clear_registration().await?;
 
         // generate a random alphanumeric 24 chars password
-        let mut rng = StdRng::from_entropy();
+        let mut rng = thread_rng();
         let password = Alphanumeric.sample_string(&mut rng, 24);
 
         // generate a 52 bytes signaling key
@@ -75,8 +75,7 @@ impl<S: Store> Manager<S, Linking> {
         rng.fill_bytes(&mut signaling_key);
 
         let service_configuration: ServiceConfiguration = signal_servers.into();
-        let push_service =
-            HyperPushService::new(service_configuration, None, crate::USER_AGENT.to_string());
+        let push_service = PushService::new(service_configuration, None, crate::USER_AGENT);
 
         let (tx, mut rx) = mpsc::channel(1);
 
@@ -138,23 +137,26 @@ impl<S: Store> Manager<S, Linking> {
                     profile_key,
                 };
 
-                store.set_aci_identity_key_pair(IdentityKeyPair::new(
-                    aci_public_key,
-                    aci_private_key,
-                ))?;
-                store.set_pni_identity_key_pair(IdentityKeyPair::new(
-                    pni_public_key,
-                    pni_private_key,
-                ))?;
+                store
+                    .set_aci_identity_key_pair(IdentityKeyPair::new(
+                        aci_public_key,
+                        aci_private_key,
+                    ))
+                    .await?;
+                store
+                    .set_pni_identity_key_pair(IdentityKeyPair::new(
+                        pni_public_key,
+                        pni_private_key,
+                    ))
+                    .await?;
 
-                store.save_registration_data(&registration_data)?;
+                store.save_registration_data(&registration_data).await?;
                 info!(
                     "successfully registered device {}",
                     &registration_data.service_ids
                 );
 
                 let mut manager = Manager {
-                    rng,
                     store: store.clone(),
                     state: Registered::with_data(registration_data),
                 };
@@ -162,14 +164,14 @@ impl<S: Store> Manager<S, Linking> {
                 // Register pre-keys with the server. If this fails, this can lead to issues
                 // receiving, in that case clear the registration and propagate the error.
                 if let Err(e) = manager.register_pre_keys().await {
-                    store.clear_registration()?;
+                    store.clear_registration().await?;
                     Err(e)
                 } else {
                     Ok(manager)
                 }
             }
             Err(e) => {
-                store.clear_registration()?;
+                store.clear_registration().await?;
                 Err(e)
             }
         }

@@ -1,11 +1,9 @@
 use libsignal_service::configuration::{ServiceConfiguration, SignalServers};
 use libsignal_service::prelude::phonenumber::PhoneNumber;
 use libsignal_service::push_service::{PushService, VerificationTransport};
-use libsignal_service_hyper::push_service::HyperPushService;
-use log::trace;
 use rand::distributions::{Alphanumeric, DistString};
-use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::thread_rng;
+use tracing::trace;
 
 use crate::store::Store;
 use crate::{Error, Manager};
@@ -39,12 +37,14 @@ impl<S: Store> Manager<S, Registration> {
     /// };
     /// use presage::manager::RegistrationOptions;
     /// use presage::Manager;
-    /// use presage_store_sled::{MigrationConflictStrategy, OnNewIdentity, SledStore};
+    /// use presage::model::identity::OnNewIdentity;
+    ///
+    /// use presage_store_sled::{MigrationConflictStrategy, SledStore};
     ///
     /// #[tokio::main]
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let store =
-    ///         SledStore::open("/tmp/presage-example", MigrationConflictStrategy::Drop, OnNewIdentity::Trust)?;
+    ///         SledStore::open("/tmp/presage-example", MigrationConflictStrategy::Drop, OnNewIdentity::Trust).await?;
     ///
     ///     let manager = Manager::register(
     ///         store,
@@ -74,19 +74,18 @@ impl<S: Store> Manager<S, Registration> {
         } = registration_options;
 
         // check if we are already registered
-        if !force && store.is_registered() {
+        if !force && store.is_registered().await {
             return Err(Error::AlreadyRegisteredError);
         }
 
-        store.clear_registration()?;
+        store.clear_registration().await?;
 
         // generate a random alphanumeric 24 chars password
-        let mut rng = StdRng::from_entropy();
+        let mut rng = thread_rng();
         let password = Alphanumeric.sample_string(&mut rng, 24);
 
         let service_configuration: ServiceConfiguration = signal_servers.into();
-        let mut push_service =
-            HyperPushService::new(service_configuration, None, crate::USER_AGENT.to_string());
+        let mut push_service = PushService::new(service_configuration, None, crate::USER_AGENT);
 
         trace!("creating registration verification session");
 
@@ -136,7 +135,6 @@ impl<S: Store> Manager<S, Registration> {
                 password,
                 session_id: session.id,
             },
-            rng,
         };
 
         Ok(manager)

@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 
-use libsignal_service::{
-    models::ParseContactError, protocol::SignalProtocolError, ParseServiceAddressError,
-};
+use libsignal_service::prelude::MessageSenderError;
+use libsignal_service::{models::ParseContactError, protocol::SignalProtocolError};
 
 use crate::store::StoreError;
 
@@ -31,7 +30,7 @@ pub enum Error<S: std::error::Error> {
     #[error("libsignal-service error: {0}")]
     ProfileManagerError(#[from] libsignal_service::ProfileManagerError),
     #[error("libsignal-service sending error: {0}")]
-    MessageSenderError(#[from] libsignal_service::prelude::MessageSenderError),
+    MessageSenderError(Box<MessageSenderError>),
     #[error("this client is already registered with Signal")]
     AlreadyRegisteredError,
     #[error("this client is not yet registered, please register or link as a secondary device")]
@@ -48,8 +47,6 @@ pub enum Error<S: std::error::Error> {
     MessagePipeNotStarted,
     #[error("receiving pipe was interrupted")]
     MessagePipeInterruptedError,
-    #[error(transparent)]
-    ParseServiceAddressError(#[from] ParseServiceAddressError),
     #[error("failed to parse contact information: {0}")]
     ParseContactError(#[from] ParseContactError),
     #[error("failed to decrypt attachment: {0}")]
@@ -74,6 +71,12 @@ pub enum Error<S: std::error::Error> {
     ProfileCipherError(#[from] libsignal_service::profile_cipher::ProfileCipherError),
     #[error("An operation was requested that requires the registration to be primary, but it was only secondary")]
     NotPrimaryDevice,
+}
+
+impl<S: std::error::Error> From<MessageSenderError> for Error<S> {
+    fn from(v: MessageSenderError) -> Self {
+        Self::MessageSenderError(Box::new(v))
+    }
 }
 
 impl<S: StoreError> From<S> for Error<S> {

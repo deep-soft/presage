@@ -3,16 +3,14 @@ use std::{
     sync::Arc,
 };
 
-use log::debug;
 use presage::{
     libsignal_service::{
         content::Content,
-        groups_v2::Group,
-        models::Contact,
         prelude::Uuid,
         zkgroup::{profiles::ProfileKey, GroupMasterKeyBytes},
         Profile,
     },
+    model::{contacts::Contact, groups::Group},
     store::{ContentExt, ContentsStore, StickerPack, Thread},
     AvatarBytes,
 };
@@ -20,6 +18,7 @@ use prost::Message;
 use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 use sled::IVec;
+use tracing::{debug, trace};
 
 use crate::{protobuf::ContentProto, SledStore, SledStoreError};
 
@@ -40,7 +39,7 @@ impl ContentsStore for SledStore {
     type MessagesIter = SledMessagesIter;
     type StickerPacksIter = SledStickerPacksIter;
 
-    fn clear_profiles(&mut self) -> Result<(), Self::ContentsStoreError> {
+    async fn clear_profiles(&mut self) -> Result<(), Self::ContentsStoreError> {
         let db = self.write();
         db.drop_tree(SLED_TREE_PROFILES)?;
         db.drop_tree(SLED_TREE_PROFILE_KEYS)?;
@@ -49,7 +48,7 @@ impl ContentsStore for SledStore {
         Ok(())
     }
 
-    fn clear_contents(&mut self) -> Result<(), Self::ContentsStoreError> {
+    async fn clear_contents(&mut self) -> Result<(), Self::ContentsStoreError> {
         let db = self.write();
         db.drop_tree(SLED_TREE_CONTACTS)?;
         db.drop_tree(SLED_TREE_GROUPS)?;
@@ -66,18 +65,18 @@ impl ContentsStore for SledStore {
         Ok(())
     }
 
-    fn clear_contacts(&mut self) -> Result<(), SledStoreError> {
+    async fn clear_contacts(&mut self) -> Result<(), SledStoreError> {
         self.write().drop_tree(SLED_TREE_CONTACTS)?;
         Ok(())
     }
 
-    fn save_contact(&mut self, contact: &Contact) -> Result<(), SledStoreError> {
+    async fn save_contact(&mut self, contact: &Contact) -> Result<(), SledStoreError> {
         self.insert(SLED_TREE_CONTACTS, contact.uuid, contact)?;
         debug!("saved contact");
         Ok(())
     }
 
-    fn contacts(&self) -> Result<Self::ContactsIter, SledStoreError> {
+    async fn contacts(&self) -> Result<Self::ContactsIter, SledStoreError> {
         Ok(SledContactsIter {
             iter: self.read().open_tree(SLED_TREE_CONTACTS)?.iter(),
             #[cfg(feature = "encryption")]
@@ -85,20 +84,20 @@ impl ContentsStore for SledStore {
         })
     }
 
-    fn contact_by_id(&self, id: &Uuid) -> Result<Option<Contact>, SledStoreError> {
+    async fn contact_by_id(&self, id: &Uuid) -> Result<Option<Contact>, SledStoreError> {
         self.get(SLED_TREE_CONTACTS, id)
     }
 
     /// Groups
 
-    fn clear_groups(&mut self) -> Result<(), SledStoreError> {
+    async fn clear_groups(&mut self) -> Result<(), SledStoreError> {
         let db = self.write();
         db.drop_tree(SLED_TREE_GROUPS)?;
         db.flush()?;
         Ok(())
     }
 
-    fn groups(&self) -> Result<Self::GroupsIter, SledStoreError> {
+    async fn groups(&self) -> Result<Self::GroupsIter, SledStoreError> {
         Ok(SledGroupsIter {
             iter: self.read().open_tree(SLED_TREE_GROUPS)?.iter(),
             #[cfg(feature = "encryption")]
@@ -106,30 +105,30 @@ impl ContentsStore for SledStore {
         })
     }
 
-    fn group(
+    async fn group(
         &self,
         master_key_bytes: GroupMasterKeyBytes,
     ) -> Result<Option<Group>, SledStoreError> {
         self.get(SLED_TREE_GROUPS, master_key_bytes)
     }
 
-    fn save_group(
+    async fn save_group(
         &self,
         master_key: GroupMasterKeyBytes,
-        group: &Group,
+        group: impl Into<Group>,
     ) -> Result<(), SledStoreError> {
-        self.insert(SLED_TREE_GROUPS, master_key, group)?;
+        self.insert(SLED_TREE_GROUPS, master_key, group.into())?;
         Ok(())
     }
 
-    fn group_avatar(
+    async fn group_avatar(
         &self,
         master_key_bytes: GroupMasterKeyBytes,
     ) -> Result<Option<AvatarBytes>, SledStoreError> {
         self.get(SLED_TREE_GROUP_AVATARS, master_key_bytes)
     }
 
-    fn save_group_avatar(
+    async fn save_group_avatar(
         &self,
         master_key: GroupMasterKeyBytes,
         avatar: &AvatarBytes,
@@ -140,7 +139,7 @@ impl ContentsStore for SledStore {
 
     /// Messages
 
-    fn clear_messages(&mut self) -> Result<(), SledStoreError> {
+    async fn clear_messages(&mut self) -> Result<(), SledStoreError> {
         let db = self.write();
         for name in db.tree_names() {
             if name
@@ -154,8 +153,8 @@ impl ContentsStore for SledStore {
         Ok(())
     }
 
-    fn clear_thread(&mut self, thread: &Thread) -> Result<(), SledStoreError> {
-        log::trace!("clearing thread {thread}");
+    async fn clear_thread(&mut self, thread: &Thread) -> Result<(), SledStoreError> {
+        trace!(%thread, "clearing thread");
 
         let db = self.write();
         db.drop_tree(messages_thread_tree_name(thread))?;
@@ -164,9 +163,9 @@ impl ContentsStore for SledStore {
         Ok(())
     }
 
-    fn save_message(&self, thread: &Thread, message: Content) -> Result<(), SledStoreError> {
+    async fn save_message(&self, thread: &Thread, message: Content) -> Result<(), SledStoreError> {
         let ts = message.timestamp();
-        log::trace!("storing a message with thread: {thread}, timestamp: {ts}",);
+        trace!(%thread, ts, "storing a message with thread");
 
         let tree = messages_thread_tree_name(thread);
         let key = ts.to_be_bytes();
@@ -179,12 +178,20 @@ impl ContentsStore for SledStore {
         Ok(())
     }
 
-    fn delete_message(&mut self, thread: &Thread, timestamp: u64) -> Result<bool, SledStoreError> {
+    async fn delete_message(
+        &mut self,
+        thread: &Thread,
+        timestamp: u64,
+    ) -> Result<bool, SledStoreError> {
         let tree = messages_thread_tree_name(thread);
         self.remove(&tree, timestamp.to_be_bytes())
     }
 
-    fn message(&self, thread: &Thread, timestamp: u64) -> Result<Option<Content>, SledStoreError> {
+    async fn message(
+        &self,
+        thread: &Thread,
+        timestamp: u64,
+    ) -> Result<Option<Content>, SledStoreError> {
         // Big-Endian needed, otherwise wrong ordering in sled.
         let val: Option<Vec<u8>> =
             self.get(&messages_thread_tree_name(thread), timestamp.to_be_bytes())?;
@@ -198,13 +205,13 @@ impl ContentsStore for SledStore {
         }
     }
 
-    fn messages(
+    async fn messages(
         &self,
         thread: &Thread,
         range: impl RangeBounds<u64>,
     ) -> Result<Self::MessagesIter, SledStoreError> {
         let tree_thread = self.read().open_tree(messages_thread_tree_name(thread))?;
-        debug!("{} messages in this tree", tree_thread.len());
+        debug!(%thread, count = tree_thread.len(), "loading message tree");
 
         let iter = match (range.start_bound(), range.end_bound()) {
             (Bound::Included(start), Bound::Unbounded) => tree_thread.range(start.to_be_bytes()..),
@@ -229,15 +236,19 @@ impl ContentsStore for SledStore {
         })
     }
 
-    fn upsert_profile_key(&mut self, uuid: &Uuid, key: ProfileKey) -> Result<bool, SledStoreError> {
+    async fn upsert_profile_key(
+        &mut self,
+        uuid: &Uuid,
+        key: ProfileKey,
+    ) -> Result<bool, SledStoreError> {
         self.insert(SLED_TREE_PROFILE_KEYS, uuid.as_bytes(), key)
     }
 
-    fn profile_key(&self, uuid: &Uuid) -> Result<Option<ProfileKey>, SledStoreError> {
+    async fn profile_key(&self, uuid: &Uuid) -> Result<Option<ProfileKey>, SledStoreError> {
         self.get(SLED_TREE_PROFILE_KEYS, uuid.as_bytes())
     }
 
-    fn save_profile(
+    async fn save_profile(
         &mut self,
         uuid: Uuid,
         key: ProfileKey,
@@ -248,12 +259,16 @@ impl ContentsStore for SledStore {
         Ok(())
     }
 
-    fn profile(&self, uuid: Uuid, key: ProfileKey) -> Result<Option<Profile>, SledStoreError> {
+    async fn profile(
+        &self,
+        uuid: Uuid,
+        key: ProfileKey,
+    ) -> Result<Option<Profile>, SledStoreError> {
         let key = self.profile_key_for_uuid(uuid, key);
         self.get(SLED_TREE_PROFILES, key)
     }
 
-    fn save_profile_avatar(
+    async fn save_profile_avatar(
         &mut self,
         uuid: Uuid,
         key: ProfileKey,
@@ -264,7 +279,7 @@ impl ContentsStore for SledStore {
         Ok(())
     }
 
-    fn profile_avatar(
+    async fn profile_avatar(
         &self,
         uuid: Uuid,
         key: ProfileKey,
@@ -273,20 +288,20 @@ impl ContentsStore for SledStore {
         self.get(SLED_TREE_PROFILE_AVATARS, key)
     }
 
-    fn add_sticker_pack(&mut self, pack: &StickerPack) -> Result<(), SledStoreError> {
+    async fn add_sticker_pack(&mut self, pack: &StickerPack) -> Result<(), SledStoreError> {
         self.insert(SLED_TREE_STICKER_PACKS, pack.id.clone(), pack)?;
         Ok(())
     }
 
-    fn remove_sticker_pack(&mut self, id: &[u8]) -> Result<bool, SledStoreError> {
+    async fn remove_sticker_pack(&mut self, id: &[u8]) -> Result<bool, SledStoreError> {
         self.remove(SLED_TREE_STICKER_PACKS, id)
     }
 
-    fn sticker_pack(&self, id: &[u8]) -> Result<Option<StickerPack>, SledStoreError> {
+    async fn sticker_pack(&self, id: &[u8]) -> Result<Option<StickerPack>, SledStoreError> {
         self.get(SLED_TREE_STICKER_PACKS, id)
     }
 
-    fn sticker_packs(&self) -> Result<Self::StickerPacksIter, SledStoreError> {
+    async fn sticker_packs(&self) -> Result<Self::StickerPacksIter, SledStoreError> {
         Ok(SledStickerPacksIter {
             cipher: self.cipher.clone(),
             iter: self.read().open_tree(SLED_TREE_STICKER_PACKS)?.iter(),

@@ -6,7 +6,6 @@ use std::{
 };
 
 use base64::prelude::*;
-use log::debug;
 use presage::{
     libsignal_service::{
         prelude::{ProfileKey, Uuid},
@@ -17,11 +16,13 @@ use presage::{
         },
     },
     manager::RegistrationData,
+    model::identity::OnNewIdentity,
     store::{ContentsStore, StateStore, Store},
 };
 use protocol::{AciSledStore, PniSledStore, SledProtocolStore, SledTrees};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use tracing::{debug, error};
 
 mod content;
 mod error;
@@ -33,9 +34,6 @@ use sled::IVec;
 
 const SLED_TREE_STATE: &str = "state";
 
-const SLED_KEY_NEXT_SIGNED_PRE_KEY_ID: &str = "next_signed_pre_key_id";
-const SLED_KEY_NEXT_PQ_PRE_KEY_ID: &str = "next_pq_pre_key_id";
-const SLED_KEY_PRE_KEYS_OFFSET_ID: &str = "pre_keys_offset_id";
 const SLED_KEY_REGISTRATION: &str = "registration";
 const SLED_KEY_SCHEMA_VERSION: &str = "schema_version";
 #[cfg(feature = "encryption")]
@@ -68,7 +66,6 @@ pub enum MigrationConflictStrategy {
 #[derive(PartialEq, Eq, Clone, Debug, Default, Serialize, Deserialize)]
 pub enum SchemaVersion {
     /// prior to any versioning of the schema
-    #[default]
     V0 = 0,
     V1 = 1,
     V2 = 2,
@@ -77,18 +74,17 @@ pub enum SchemaVersion {
     V4 = 4,
     /// ACI and PNI identity key pairs are moved into dedicated storage keys from registration data
     V5 = 5,
+    #[default]
+    /// Reset pre-keys after fixing persistence
+    V6 = 6,
 }
 
 impl SchemaVersion {
-    fn current() -> SchemaVersion {
-        Self::V5
-    }
-
     /// return an iterator on all the necessary migration steps from another version
     fn steps(self) -> impl Iterator<Item = SchemaVersion> {
         Range {
             start: self as u8 + 1,
-            end: Self::current() as u8 + 1,
+            end: Self::default() as u8 + 1,
         }
         .map(|i| match i {
             1 => SchemaVersion::V1,
@@ -96,15 +92,10 @@ impl SchemaVersion {
             3 => SchemaVersion::V3,
             4 => SchemaVersion::V4,
             5 => SchemaVersion::V5,
+            6 => SchemaVersion::V6,
             _ => unreachable!("oops, this not supposed to happen!"),
         })
     }
-}
-
-#[derive(Debug, Clone)]
-pub enum OnNewIdentity {
-    Reject,
-    Trust,
 }
 
 impl SledStore {
@@ -134,7 +125,7 @@ impl SledStore {
         })
     }
 
-    pub fn open(
+    pub async fn open(
         db_path: impl AsRef<Path>,
         migration_conflict_strategy: MigrationConflictStrategy,
         trust_new_identities: OnNewIdentity,
@@ -145,9 +136,10 @@ impl SledStore {
             migration_conflict_strategy,
             trust_new_identities,
         )
+        .await
     }
 
-    pub fn open_with_passphrase(
+    pub async fn open_with_passphrase(
         db_path: impl AsRef<Path>,
         passphrase: Option<impl AsRef<str>>,
         migration_conflict_strategy: MigrationConflictStrategy,
@@ -155,7 +147,7 @@ impl SledStore {
     ) -> Result<Self, SledStoreError> {
         let passphrase = passphrase.as_ref();
 
-        migrate(&db_path, passphrase, migration_conflict_strategy)?;
+        migrate(&db_path, passphrase, migration_conflict_strategy).await?;
         Self::new(db_path, passphrase, trust_new_identities)
     }
 
@@ -312,7 +304,7 @@ impl SledStore {
     }
 }
 
-fn migrate(
+async fn migrate(
     db_path: impl AsRef<Path>,
     passphrase: Option<impl AsRef<str>>,
     migration_conflict_strategy: MigrationConflictStrategy,
@@ -320,7 +312,7 @@ fn migrate(
     let db_path = db_path.as_ref();
     let passphrase = passphrase.as_ref();
 
-    let run_migrations = move || {
+    let run_migrations = {
         let mut store = SledStore::new(db_path, passphrase, OnNewIdentity::Reject)?;
         let schema_version = store.schema_version();
         for step in schema_version.steps() {
@@ -337,7 +329,7 @@ fn migrate(
                         let state = serde_json::from_slice(&data).map_err(SledStoreError::from)?;
 
                         // save it the new school way
-                        store.save_registration_data(&state)?;
+                        store.save_registration_data(&state).await?;
 
                         // remove old data
                         let db = store.write();
@@ -347,11 +339,11 @@ fn migrate(
                 }
                 SchemaVersion::V3 => {
                     debug!("migrating from schema v2 to v3: dropping encrypted group cache");
-                    store.clear_groups()?;
+                    store.clear_groups().await?;
                 }
                 SchemaVersion::V4 => {
                     debug!("migrating from schema v3 to v4: dropping profile cache");
-                    store.clear_profiles()?;
+                    store.clear_profiles().await?;
                 }
                 SchemaVersion::V5 => {
                     debug!("migrating from schema v4 to v5: moving identity key pairs");
@@ -368,21 +360,67 @@ fn migrate(
                         pub(crate) pni_public_key: Option<IdentityKey>,
                     }
 
-                    let registration_data: Option<RegistrationDataV4Keys> =
-                        store.get(SLED_TREE_STATE, SLED_KEY_REGISTRATION)?;
-                    if let Some(data) = registration_data {
-                        store.set_aci_identity_key_pair(IdentityKeyPair::new(
-                            data.aci_public_key,
-                            data.aci_private_key,
-                        ))?;
-                        if let Some((public_key, private_key)) =
-                            data.pni_public_key.zip(data.pni_private_key)
-                        {
-                            store.set_pni_identity_key_pair(IdentityKeyPair::new(
-                                public_key,
-                                private_key,
-                            ))?;
+                    let run_step: Result<(), SledStoreError> = {
+                        let registration_data: Option<RegistrationDataV4Keys> =
+                            store.get(SLED_TREE_STATE, SLED_KEY_REGISTRATION)?;
+                        if let Some(data) = registration_data {
+                            store
+                                .set_aci_identity_key_pair(IdentityKeyPair::new(
+                                    data.aci_public_key,
+                                    data.aci_private_key,
+                                ))
+                                .await?;
+                            if let Some((public_key, private_key)) =
+                                data.pni_public_key.zip(data.pni_private_key)
+                            {
+                                store
+                                    .set_pni_identity_key_pair(IdentityKeyPair::new(
+                                        public_key,
+                                        private_key,
+                                    ))
+                                    .await?;
+                            }
                         }
+                        Ok(())
+                    };
+
+                    if let Err(error) = run_step {
+                        error!("failed to run v4 -> v5 migration: {error}");
+                    }
+                }
+                SchemaVersion::V6 => {
+                    debug!("migrating from schema v5 to v6: new keys encoding in ACI and PNI protocol stores");
+                    let db = store.db.read().expect("poisoned");
+
+                    let trees = [
+                        AciSledStore::signed_pre_keys(),
+                        AciSledStore::pre_keys(),
+                        AciSledStore::kyber_pre_keys(),
+                        AciSledStore::kyber_pre_keys_last_resort(),
+                        PniSledStore::signed_pre_keys(),
+                        PniSledStore::pre_keys(),
+                        PniSledStore::kyber_pre_keys(),
+                        PniSledStore::kyber_pre_keys_last_resort(),
+                    ];
+
+                    for tree_name in trees {
+                        let tree = db.open_tree(tree_name)?;
+                        let num_keys_before = tree.len();
+                        let mut data = Vec::new();
+                        for (k, v) in tree.iter().filter_map(|kv| kv.ok()) {
+                            if let Some(key) = std::str::from_utf8(&k)
+                                .ok()
+                                .and_then(|s| s.parse::<u32>().ok())
+                            {
+                                data.push((key, v));
+                            }
+                        }
+                        tree.clear()?;
+                        for (k, v) in data {
+                            let _ = tree.insert(k.to_be_bytes(), v);
+                        }
+                        let num_keys_after = tree.len();
+                        debug!(tree_name, num_keys_before, num_keys_after, "migrated keys");
                     }
                 }
                 _ => return Err(SledStoreError::MigrationConflict),
@@ -394,7 +432,7 @@ fn migrate(
         Ok(())
     };
 
-    if let Err(SledStoreError::MigrationConflict) = run_migrations() {
+    if let Err(SledStoreError::MigrationConflict) = run_migrations {
         match migration_conflict_strategy {
             MigrationConflictStrategy::BackupAndDrop => {
                 let mut new_db_path = db_path.to_path_buf();
@@ -422,34 +460,40 @@ fn migrate(
 impl StateStore for SledStore {
     type StateStoreError = SledStoreError;
 
-    fn load_registration_data(&self) -> Result<Option<RegistrationData>, SledStoreError> {
+    async fn load_registration_data(&self) -> Result<Option<RegistrationData>, SledStoreError> {
         self.get(SLED_TREE_STATE, SLED_KEY_REGISTRATION)
     }
 
-    fn set_aci_identity_key_pair(
+    async fn set_aci_identity_key_pair(
         &self,
         key_pair: IdentityKeyPair,
     ) -> Result<(), Self::StateStoreError> {
         self.set_identity_key_pair::<AciSledStore>(key_pair)
     }
 
-    fn set_pni_identity_key_pair(
+    async fn set_pni_identity_key_pair(
         &self,
         key_pair: IdentityKeyPair,
     ) -> Result<(), Self::StateStoreError> {
         self.set_identity_key_pair::<PniSledStore>(key_pair)
     }
 
-    fn save_registration_data(&mut self, state: &RegistrationData) -> Result<(), SledStoreError> {
+    async fn save_registration_data(
+        &mut self,
+        state: &RegistrationData,
+    ) -> Result<(), SledStoreError> {
         self.insert(SLED_TREE_STATE, SLED_KEY_REGISTRATION, state)?;
         Ok(())
     }
 
-    fn is_registered(&self) -> bool {
-        self.load_registration_data().unwrap_or_default().is_some()
+    async fn is_registered(&self) -> bool {
+        self.load_registration_data()
+            .await
+            .unwrap_or_default()
+            .is_some()
     }
 
-    fn clear_registration(&mut self) -> Result<(), SledStoreError> {
+    async fn clear_registration(&mut self) -> Result<(), SledStoreError> {
         // drop registration data (includes identity keys)
         {
             let db = self.write();
@@ -459,11 +503,11 @@ impl StateStore for SledStore {
         }
 
         // drop all saved profile (+avatards) and profile keys
-        self.clear_profiles()?;
+        self.clear_profiles().await?;
 
         // drop all keys
-        self.aci_protocol_store().clear()?;
-        self.pni_protocol_store().clear()?;
+        self.aci_protocol_store().clear(true)?;
+        self.pni_protocol_store().clear(true)?;
 
         Ok(())
     }
@@ -474,9 +518,9 @@ impl Store for SledStore {
     type AciStore = SledProtocolStore<AciSledStore>;
     type PniStore = SledProtocolStore<PniSledStore>;
 
-    fn clear(&mut self) -> Result<(), SledStoreError> {
-        self.clear_registration()?;
-        self.clear_contents()?;
+    async fn clear(&mut self) -> Result<(), SledStoreError> {
+        self.clear_registration().await?;
+        self.clear_contents().await?;
 
         Ok(())
     }
@@ -496,13 +540,32 @@ mod tests {
         content::{ContentBody, Metadata},
         prelude::Uuid,
         proto::DataMessage,
-        ServiceAddress,
+        protocol::{PreKeyId, ServiceId},
     };
     use presage::store::ContentsStore;
+    use protocol::SledPreKeyId;
     use quickcheck::{Arbitrary, Gen};
+    use quickcheck_macros::quickcheck;
 
-    use super::SledStore;
+    use crate::SchemaVersion;
 
+    use super::*;
+
+    #[test]
+    fn test_migration_steps() {
+        let steps: Vec<_> = SchemaVersion::steps(SchemaVersion::V0).collect();
+        assert_eq!(
+            steps,
+            [
+                SchemaVersion::V1,
+                SchemaVersion::V2,
+                SchemaVersion::V3,
+                SchemaVersion::V4,
+                SchemaVersion::V5,
+                SchemaVersion::V6,
+            ]
+        )
+    }
     #[derive(Debug, Clone)]
     struct Thread(presage::store::Thread);
 
@@ -517,10 +580,11 @@ mod tests {
                 Uuid::from_u128(Arbitrary::arbitrary(g)),
                 Uuid::from_u128(Arbitrary::arbitrary(g)),
             ];
+            let sender_uuid: Uuid = *g.choose(&contacts).unwrap();
+            let destination_uuid: Uuid = *g.choose(&contacts).unwrap();
             let metadata = Metadata {
-                sender: ServiceAddress {
-                    uuid: *g.choose(&contacts).unwrap(),
-                },
+                sender: ServiceId::Aci(sender_uuid.into()),
+                destination: ServiceId::Aci(destination_uuid.into()),
                 sender_device: Arbitrary::arbitrary(g),
                 server_guid: None,
                 timestamp,
@@ -560,27 +624,47 @@ mod tests {
         }
     }
 
+    #[quickcheck]
+    fn compare_pre_keys(mut pre_key_id: u32, mut next_pre_key_id: u32) {
+        if pre_key_id > next_pre_key_id {
+            std::mem::swap(&mut pre_key_id, &mut next_pre_key_id);
+        }
+        assert!(PreKeyId::from(pre_key_id).sled_key() <= PreKeyId::from(next_pre_key_id).sled_key())
+    }
+
     #[quickcheck_async::tokio]
     async fn test_store_messages(thread: Thread, content: Content) -> anyhow::Result<()> {
         let db = SledStore::temporary()?;
         let thread = thread.0;
-        db.save_message(&thread, content_with_timestamp(&content, 1678295210))?;
-        db.save_message(&thread, content_with_timestamp(&content, 1678295220))?;
-        db.save_message(&thread, content_with_timestamp(&content, 1678295230))?;
-        db.save_message(&thread, content_with_timestamp(&content, 1678295240))?;
-        db.save_message(&thread, content_with_timestamp(&content, 1678280000))?;
+        db.save_message(&thread, content_with_timestamp(&content, 1678295210))
+            .await?;
+        db.save_message(&thread, content_with_timestamp(&content, 1678295220))
+            .await?;
+        db.save_message(&thread, content_with_timestamp(&content, 1678295230))
+            .await?;
+        db.save_message(&thread, content_with_timestamp(&content, 1678295240))
+            .await?;
+        db.save_message(&thread, content_with_timestamp(&content, 1678280000))
+            .await?;
 
-        assert_eq!(db.messages(&thread, ..).unwrap().count(), 5);
-        assert_eq!(db.messages(&thread, 0..).unwrap().count(), 5);
-        assert_eq!(db.messages(&thread, 1678280000..).unwrap().count(), 5);
+        assert_eq!(db.messages(&thread, ..).await.unwrap().count(), 5);
+        assert_eq!(db.messages(&thread, 0..).await.unwrap().count(), 5);
+        assert_eq!(db.messages(&thread, 1678280000..).await.unwrap().count(), 5);
 
-        assert_eq!(db.messages(&thread, 0..1678280000)?.count(), 0);
-        assert_eq!(db.messages(&thread, 0..1678295210)?.count(), 1);
-        assert_eq!(db.messages(&thread, 1678295210..1678295240)?.count(), 3);
-        assert_eq!(db.messages(&thread, 1678295210..=1678295240)?.count(), 4);
+        assert_eq!(db.messages(&thread, 0..1678280000).await?.count(), 0);
+        assert_eq!(db.messages(&thread, 0..1678295210).await?.count(), 1);
+        assert_eq!(
+            db.messages(&thread, 1678295210..1678295240).await?.count(),
+            3
+        );
+        assert_eq!(
+            db.messages(&thread, 1678295210..=1678295240).await?.count(),
+            4
+        );
 
         assert_eq!(
-            db.messages(&thread, 0..=1678295240)?
+            db.messages(&thread, 0..=1678295240)
+                .await?
                 .next()
                 .unwrap()?
                 .metadata
@@ -588,7 +672,8 @@ mod tests {
             1678280000
         );
         assert_eq!(
-            db.messages(&thread, 0..=1678295240)?
+            db.messages(&thread, 0..=1678295240)
+                .await?
                 .next_back()
                 .unwrap()?
                 .metadata
