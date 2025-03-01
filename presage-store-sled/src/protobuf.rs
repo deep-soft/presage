@@ -1,5 +1,4 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
-
 mod textsecure {
     include!(concat!(env!("OUT_DIR"), "/textsecure.rs"));
 }
@@ -80,6 +79,7 @@ impl TryFrom<MetadataProto> for Metadata {
                 .unwrap_or_default(),
             needs_receipt: metadata.needs_receipt.unwrap_or_default(),
             unidentified_sender: false,
+            was_plaintext: false,
         })
     }
 }

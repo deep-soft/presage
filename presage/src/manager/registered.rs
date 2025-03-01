@@ -858,6 +858,7 @@ impl<S: Store> Manager<S, Registered> {
                 timestamp,
                 needs_receipt: false,
                 unidentified_sender: false,
+                was_plaintext: false,
             },
             body: content_body,
         };
@@ -964,6 +965,7 @@ impl<S: Store> Manager<S, Registered> {
                 timestamp,
                 needs_receipt: false, // TODO: this is just wrong
                 unidentified_sender: false,
+                was_plaintext: false,
             },
             body: content_body,
         };
@@ -1453,10 +1455,10 @@ async fn save_message<S: Store>(
                 // - update the contact if the profile key has changed
                 // TODO: mark this contact as "created by us" maybe to know whether we should update it or not
                 if store.contact_by_id(&sender.raw_uuid()).await?.is_none()
-                    || !store
+                    || store
                         .profile_key(&sender.raw_uuid())
                         .await?
-                        .is_some_and(|p| p.bytes == profile_key.bytes)
+                        .is_none_or(|p| p.bytes != profile_key.bytes)
                 {
                     if let Some(aci) = sender.aci() {
                         let sender_uuid: Uuid = aci.into();
