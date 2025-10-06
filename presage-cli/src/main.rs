@@ -9,7 +9,6 @@ use base64::prelude::*;
 use chrono::Local;
 use clap::{ArgGroup, Parser, Subcommand};
 use directories::ProjectDirs;
-use env_logger::Env;
 use futures::StreamExt;
 use futures::{channel::oneshot, future, pin_mut};
 use mime_guess::mime::APPLICATION_OCTET_STREAM;
@@ -40,8 +39,7 @@ use presage::{
     store::{Store, Thread},
     Manager,
 };
-use presage_store_sled::MigrationConflictStrategy;
-use presage_store_sled::SledStore;
+use presage_store_sqlite::SqliteStore;
 use tempfile::Builder;
 use tempfile::TempDir;
 use tokio::{
@@ -55,8 +53,8 @@ use url::Url;
 #[derive(Parser)]
 #[clap(about = "a basic signal CLI to try things out")]
 struct Args {
-    #[clap(long = "db-path", short = 'd')]
-    db_path: Option<PathBuf>,
+    #[clap(long = "sqlite-db-path", group = "db")]
+    sqlite_db_path: Option<String>,
 
     #[clap(
         help = "passphrase to encrypt the local storage",
@@ -218,29 +216,38 @@ fn attachments_tmp_dir() -> anyhow::Result<TempDir> {
     Ok(attachments_tmp_dir)
 }
 
+fn init() -> Args {
+    let filter = tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(tracing::metadata::LevelFilter::INFO.into())
+        .from_env_lossy();
+    tracing_subscriber::fmt::fmt()
+        .with_writer(std::io::stderr)
+        .with_env_filter(filter)
+        .init();
+    Args::parse()
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
-    env_logger::Builder::from_env(
-        Env::default().default_filter_or(format!("{}=warn", env!("CARGO_PKG_NAME"))),
-    )
-    .init();
+    let args = init();
 
-    let args = Args::parse();
-
-    let db_path = args.db_path.unwrap_or_else(|| {
+    let sqlite_db_path = args.sqlite_db_path.unwrap_or_else(|| {
         ProjectDirs::from("org", "whisperfish", "presage")
             .unwrap()
             .config_dir()
-            .into()
+            .join("cli.db3")
+            .display()
+            .to_string()
     });
-    debug!(db_path =% db_path.display(), "opening config database");
-    let config_store = SledStore::open_with_passphrase(
-        db_path,
-        args.passphrase,
-        MigrationConflictStrategy::Raise,
+
+    debug!(sqlite_db_path, "opening config database");
+    let config_store = SqliteStore::open_with_passphrase(
+        &sqlite_db_path,
+        args.passphrase.as_deref(),
         OnNewIdentity::Trust,
     )
     .await?;
+
     run(args.subcommand, config_store).await
 }
 
@@ -647,7 +654,7 @@ async fn run<S: Store>(subcommand: Cmd, config_store: S) -> anyhow::Result<()> {
         Cmd::ListDevices => {
             let manager = Manager::load_registered(config_store).await?;
             let devices = manager.devices().await?;
-            let current_device_id = manager.device_id() as i64;
+            let current_device_id: u8 = manager.device_id().into();
 
             for device in devices {
                 let device_name = device
@@ -819,7 +826,7 @@ async fn run<S: Store>(subcommand: Cmd, config_store: S) -> anyhow::Result<()> {
                 .filter_map(Result::ok)
                 .filter(|c| uuid.map_or_else(|| true, |u| c.uuid == u))
                 .filter(|c| c.phone_number == phone_number)
-                .filter(|c| name.as_ref().map_or(true, |n| c.name.contains(n)))
+                .filter(|c| name.as_ref().is_none_or(|n| c.name.contains(n)))
             {
                 println!("{contact:#?}");
             }

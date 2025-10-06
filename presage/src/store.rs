@@ -12,8 +12,10 @@ use libsignal_service::{
         verified, DataMessage, EditMessage, GroupContextV2, SyncMessage, Verified,
     },
     protocol::{
-        IdentityKey, IdentityKeyPair, ProtocolAddress, ProtocolStore, SenderKeyStore, ServiceId,
+        IdentityKey, IdentityKeyPair, ProtocolAddress, ProtocolStore, SenderCertificate,
+        SenderKeyStore, ServiceId,
     },
+    push_service::DEFAULT_DEVICE_ID,
     session_store::SessionStoreExt,
     zkgroup::GroupMasterKeyBytes,
     Profile,
@@ -53,6 +55,15 @@ pub trait StateStore {
     fn save_registration_data(
         &mut self,
         state: &RegistrationData,
+    ) -> impl Future<Output = Result<(), Self::StateStoreError>>;
+
+    fn sender_certificate(
+        &self,
+    ) -> impl Future<Output = Result<Option<SenderCertificate>, Self::StateStoreError>>;
+
+    fn save_sender_certificate(
+        &self,
+        certificate: &SenderCertificate,
     ) -> impl Future<Output = Result<(), Self::StateStoreError>>;
 
     /// Returns whether this store contains registration data or not
@@ -250,7 +261,7 @@ pub trait ContentsStore: Send + Sync {
     /// Get the profile key for a contact
     fn profile_key(
         &self,
-        uuid: &Uuid,
+        service_id: &ServiceId,
     ) -> impl Future<Output = Result<Option<ProfileKey>, Self::ContentsStoreError>>;
 
     /// Save a profile by [Uuid] and [ProfileKey].
@@ -544,7 +555,7 @@ pub async fn save_trusted_identity_message<S: Store>(
         metadata: Metadata {
             sender,
             destination: sender,
-            sender_device: 0,
+            sender_device: *DEFAULT_DEVICE_ID,
             server_guid: None,
             timestamp: SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)

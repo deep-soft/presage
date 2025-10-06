@@ -9,7 +9,7 @@ use base64::prelude::*;
 use presage::{
     libsignal_service::{
         prelude::{ProfileKey, Uuid},
-        protocol::{IdentityKey, IdentityKeyPair, PrivateKey},
+        protocol::{IdentityKey, IdentityKeyPair, PrivateKey, SenderCertificate},
         utils::{
             serde_identity_key, serde_optional_identity_key, serde_optional_private_key,
             serde_private_key,
@@ -38,8 +38,13 @@ const SLED_KEY_REGISTRATION: &str = "registration";
 const SLED_KEY_SCHEMA_VERSION: &str = "schema_version";
 #[cfg(feature = "encryption")]
 const SLED_KEY_STORE_CIPHER: &str = "store_cipher";
+const SLED_KEY_SENDER_CERTIFICATE: &str = "sender_certificate";
 
 #[derive(Clone)]
+#[deprecated(
+    since = "0.8.0",
+    note = "The sled store is deprecated, use the `presage-store-sqlite` crate instead. This will be removed in a future release. A migration path might be provided before removal if there is demand for it."
+)]
 pub struct SledStore {
     db: Arc<RwLock<sled::Db>>,
     #[cfg(feature = "encryption")]
@@ -98,6 +103,7 @@ impl SchemaVersion {
     }
 }
 
+#[allow(deprecated)]
 impl SledStore {
     #[allow(unused_variables)]
     fn new(
@@ -183,11 +189,11 @@ impl SledStore {
         })
     }
 
-    fn read(&self) -> RwLockReadGuard<sled::Db> {
+    fn read(&self) -> RwLockReadGuard<'_, sled::Db> {
         self.db.read().expect("poisoned rwlock")
     }
 
-    fn write(&self) -> RwLockWriteGuard<sled::Db> {
+    fn write(&self) -> RwLockWriteGuard<'_, sled::Db> {
         self.db.write().expect("poisoned rwlock")
     }
 
@@ -236,7 +242,6 @@ impl SledStore {
             .get(key)?
             .map(|p| self.decrypt_value(p))
             .transpose()
-            .map_err(SledStoreError::from)
     }
 
     pub fn iter<'a, V: DeserializeOwned + 'a>(
@@ -313,6 +318,7 @@ async fn migrate(
     let passphrase = passphrase.as_ref();
 
     let run_migrations = {
+        #[allow(deprecated)]
         let mut store = SledStore::new(db_path, passphrase, OnNewIdentity::Reject)?;
         let schema_version = store.schema_version();
         for step in schema_version.steps() {
@@ -390,6 +396,7 @@ async fn migrate(
                 }
                 SchemaVersion::V6 => {
                     debug!("migrating from schema v5 to v6: new keys encoding in ACI and PNI protocol stores");
+                    #[allow(deprecated)]
                     let db = store.db.read().expect("poisoned");
 
                     let trees = [
@@ -457,6 +464,7 @@ async fn migrate(
     Ok(())
 }
 
+#[allow(deprecated)]
 impl StateStore for SledStore {
     type StateStoreError = SledStoreError;
 
@@ -511,8 +519,29 @@ impl StateStore for SledStore {
 
         Ok(())
     }
+
+    async fn sender_certificate(&self) -> Result<Option<SenderCertificate>, Self::StateStoreError> {
+        let value: Option<Vec<u8>> = self.get(SLED_TREE_STATE, SLED_KEY_SENDER_CERTIFICATE)?;
+        value
+            .map(|value| SenderCertificate::deserialize(&value))
+            .transpose()
+            .map_err(From::from)
+    }
+
+    async fn save_sender_certificate(
+        &self,
+        certificate: &SenderCertificate,
+    ) -> Result<(), Self::StateStoreError> {
+        self.insert(
+            SLED_TREE_STATE,
+            SLED_KEY_SENDER_CERTIFICATE,
+            certificate.serialized()?,
+        )?;
+        Ok(())
+    }
 }
 
+#[allow(deprecated)]
 impl Store for SledStore {
     type Error = SledStoreError;
     type AciStore = SledProtocolStore<AciSledStore>;
@@ -538,7 +567,7 @@ impl Store for SledStore {
 mod tests {
     use presage::libsignal_service::{
         content::{ContentBody, Metadata},
-        prelude::Uuid,
+        prelude::{DeviceId, Uuid},
         proto::DataMessage,
         protocol::{PreKeyId, ServiceId},
     };
@@ -582,10 +611,13 @@ mod tests {
             ];
             let sender_uuid: Uuid = *g.choose(&contacts).unwrap();
             let destination_uuid: Uuid = *g.choose(&contacts).unwrap();
+            let sender_device: u8 = Arbitrary::arbitrary(g);
+            let sender_device = sender_device % 126 + 1; // see MAX_DEVICE_ID in protocol.rs
+            let sender_device: DeviceId = sender_device.try_into().unwrap();
             let metadata = Metadata {
                 sender: ServiceId::Aci(sender_uuid.into()),
                 destination: ServiceId::Aci(destination_uuid.into()),
-                sender_device: Arbitrary::arbitrary(g),
+                sender_device,
                 server_guid: None,
                 timestamp,
                 needs_receipt: Arbitrary::arbitrary(g),
@@ -635,6 +667,7 @@ mod tests {
 
     #[quickcheck_async::tokio]
     async fn test_store_messages(thread: Thread, content: Content) -> anyhow::Result<()> {
+        #[allow(deprecated)]
         let db = SledStore::temporary()?;
         let thread = thread.0;
         db.save_message(&thread, content_with_timestamp(&content, 1678295210))
